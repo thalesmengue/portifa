@@ -13,9 +13,9 @@
 </section>
 
 <script>
-  import { site, projects, contact, type Link } from "../data";
+  import { site, stack, projects, contact, type Link } from "../data";
 
-  const data = { ...site, projects, contact };
+  const data = { ...site, stack, projects, contact };
 
   const screen = document.getElementById("screen")!;
   const output = document.getElementById("output")!;
@@ -31,6 +31,7 @@
 
   const files: Record<string, () => string> = {
     "about.txt": () => esc(data.about),
+    "stack.txt": () => commands.stack(),
     "projects.txt": () => commands.projects(),
     "contact.txt": () => commands.contact(),
   };
@@ -40,6 +41,7 @@
       [
         ["whoami", "who am i"],
         ["about", "a few words"],
+        ["stack", "what i work with"],
         ["projects", "things i made"],
         ["contact", "where to find me"],
         ["ls", "list files"],
@@ -50,6 +52,11 @@
         .join("\n"),
     whoami: () => esc(data.whoami),
     about: () => esc(data.about),
+    stack: () =>
+      [
+        `${"main".padEnd(6)}${esc(data.stack.main.join(", "))}`,
+        `<span class="dim">${"also".padEnd(6)}${esc(data.stack.also.join(", "))}</span>`,
+      ].join("\n"),
     projects: () => data.projects.map((p) => `${link(p)}  <span class="dim">${esc(p.desc)}</span>`).join("\n"),
     contact: () => data.contact.map(link).join("\n"),
     ls: () => Object.keys(files).join("  "),

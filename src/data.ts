@@ -5,9 +5,17 @@ export type Project = Link & { desc: string };
 
 export const site = {
   name: "Thales Machado",
-  role: "software developer",
-  whoami: "thales machado — software developer.",
-  about: "I build web applications. I like simple software and quiet tools.",
+  role: "software engineer",
+  whoami: "thales machado — software engineer.",
+  about:
+    "Software engineer working mostly with PHP, Laravel and Livewire. " +
+    "I also build with JavaScript, TypeScript and React Native, " +
+    "and take care of the Linux servers it all runs on.",
+};
+
+export const stack = {
+  main: ["php", "laravel", "livewire"],
+  also: ["javascript", "typescript", "react native", "linux"],
 };
 
 export const projects: Project[] = [
