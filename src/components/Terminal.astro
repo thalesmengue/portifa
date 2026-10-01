@@ -23,7 +23,11 @@ const windows = ["help", "projects", "notes", "play", "contact"];
     <div class="output" aria-live="polite"></div>
     <form class="prompt waiting" autocomplete="off">
       <label for="cmd" class="ps1-label"></label>
-      <input id="cmd" class="cmd" type="text" spellcheck="false" autocapitalize="off" aria-label="command" />
+      <span class="field">
+        <input id="cmd" class="cmd" type="text" spellcheck="false" autocapitalize="off" aria-label="command" />
+        <!-- colored copy of what's typed, drawn under the (transparent) input text -->
+        <span class="mirror" aria-hidden="true"><span></span></span>
+      </span>
       <span class="hint"></span>
     </form>
   </div>
@@ -84,6 +88,13 @@ const windows = ["help", "projects", "notes", "play", "contact"];
     white-space: pre;
   }
 
+  .field {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    display: flex;
+  }
+
   .cmd {
     flex: 1;
     min-width: 0;
@@ -107,8 +118,31 @@ const windows = ["help", "projects", "notes", "play", "contact"];
     gap: 0;
   }
 
+  .searching .field,
   .searching .cmd {
     flex: none;
+  }
+
+  /* syntax highlighting: the input keeps the caret, the mirror shows the colors */
+  .mirror {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    white-space: pre;
+    pointer-events: none;
+    display: none;
+  }
+
+  .mirror > span {
+    display: inline-block;
+  }
+
+  .highlighting .cmd {
+    color: transparent;
+  }
+
+  .highlighting .mirror {
+    display: block;
   }
 
   .status {
@@ -190,6 +224,18 @@ const windows = ["help", "projects", "notes", "play", "contact"];
   }
 
   .terminal :global(.yellow) {
+    color: #e5c07b;
+  }
+
+  .terminal :global(.hl-cmd) {
+    color: var(--t-green);
+  }
+
+  .terminal :global(.hl-bad) {
+    color: #ef2929;
+  }
+
+  .terminal :global(.hl-str) {
     color: #e5c07b;
   }
 

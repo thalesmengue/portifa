@@ -5,6 +5,7 @@ import { ALIASES, ARTISAN, PATH_COMMANDS, createCommands, type Io, type State } 
 import { CAT } from "./content";
 import { HOME, basename, buildFs, lookup, resolve, type NoteRef } from "./fs";
 import { dim, esc, span, toText } from "./html";
+import { highlight } from "./highlight";
 import { startMatrix } from "./matrix";
 import { THEMES, applyTheme, savedTheme } from "./themes";
 
@@ -75,6 +76,7 @@ export function mountShell(root: HTMLElement) {
   const label = root.querySelector<HTMLElement>(".ps1-label")!;
   const input = root.querySelector<HTMLInputElement>(".cmd")!;
   const hint = root.querySelector<HTMLElement>(".hint")!;
+  const mirror = root.querySelector<HTMLElement>(".mirror > span")!;
   const clock = root.querySelector<HTMLElement>(".clock")!;
 
   const state: State = { cwd: HOME, prevCwd: HOME, history: [], startedAt: Date.now() };
@@ -109,7 +111,7 @@ export function mountShell(root: HTMLElement) {
 
   const dirLabel = () => (state.cwd === HOME ? "~" : basename(state.cwd));
   const ps1 = () => `<span class="ps1"><span class="arrow">➜</span>  <span class="dir">${esc(dirLabel())}</span></span>`;
-  const promptLine = (cmd: string) => `${ps1()} ${esc(cmd)}`;
+  const promptLine = (cmd: string) => `${ps1()} ${colorize(cmd)}`;
   const updatePrompt = () => (label.innerHTML = ps1());
 
   let charWidth = 0;
@@ -279,6 +281,30 @@ export function mountShell(root: HTMLElement) {
   };
 
   const commands = createCommands(fsRoot, notes, state, io);
+
+  // --- syntax highlighting --------------------------------------------------
+
+  const colorize = (line: string) => highlight(line, (name) => name in commands || name in ALIASES);
+
+  // only the normal prompt is highlighted; search, vim and passwords show plain text
+  function paint() {
+    const on = mode === "normal";
+    form.classList.toggle("highlighting", on);
+    if (!on) return;
+    mirror.innerHTML = colorize(input.value);
+    mirror.style.transform = `translateX(${-input.scrollLeft}px)`;
+  }
+
+  // history, completion and the shell itself also set input.value; repaint on every write
+  const valueProp = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!;
+  Object.defineProperty(input, "value", {
+    get: () => valueProp.get!.call(input),
+    set: (v: string) => {
+      valueProp.set!.call(input, v);
+      paint();
+    },
+  });
+  for (const ev of ["input", "scroll", "keyup", "select"]) input.addEventListener(ev, paint);
 
   async function run(line: string) {
     print(promptLine(line));
@@ -511,8 +537,10 @@ export function mountShell(root: HTMLElement) {
     const line = print(`${ps1()} <span class="typed"></span><span class="caret"></span>`);
     const typed = line.querySelector(".typed")!;
     await sleep(wait);
+    let sofar = "";
     for (const ch of text) {
-      typed.textContent += ch;
+      sofar += ch;
+      typed.innerHTML = colorize(sofar);
       await sleep(pace + Math.random() * pace);
     }
     await sleep(after);
