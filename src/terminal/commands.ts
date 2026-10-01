@@ -17,6 +17,7 @@ import {
 import { THEMES } from "./themes";
 import { nowPlaying } from "../scripts/now-playing";
 import { when } from "../track";
+import { ACHIEVEMENTS, progress, reset } from "../scripts/achievements";
 
 export type Io = {
   print(html: string): void;
@@ -245,6 +246,7 @@ export function createCommands(root: DirNode, notes: NoteRef[], state: State, io
         rows(
           [
             ["stack, now", "what i use, what i'm listening to"],
+            ["achievements", "what you've found so far"],
             ["ls, cd, cat", "look around (try ls -la)"],
             ["tree", "the whole filesystem"],
             ["fastfetch", "system info, kind of"],
@@ -274,6 +276,22 @@ export function createCommands(root: DirNode, notes: NoteRef[], state: State, io
         ],
         13,
       );
+    },
+    achievements: ([flag]) => {
+      if (flag === "--reset") {
+        reset();
+        return dim("achievements reset. go find them again.");
+      }
+      const { unlocked, counters } = progress();
+      const got = ACHIEVEMENTS.filter((a) => unlocked[a.id]).length;
+      const width = Math.max(...ACHIEVEMENTS.map((a) => a.name.length)) + 2;
+      const lines = ACHIEVEMENTS.map((a) => {
+        if (unlocked[a.id]) return `  ${green("✓")} ${esc(a.name.padEnd(width))}${dim(esc(a.desc))}`;
+        if (a.secret) return dim(`  · ${"???".padEnd(width)}secret`);
+        const goal = a.goal ? ` (${Math.min(counters[a.goal.counter] ?? 0, a.goal.n)}/${a.goal.n})` : "";
+        return dim(`  · ${esc(a.name.padEnd(width))}${esc(a.desc)}${goal}`);
+      });
+      return [`${green("achievements")} ${dim(`${got}/${ACHIEVEMENTS.length}`)}`, "", ...lines].join("\n");
     },
     contact: () => rows(contact.map((c) => [c.name, link(c.url.replace(/^mailto:|^https?:\/\/(www\.)?/, ""), c.url)])),
     play: () => {

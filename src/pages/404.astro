@@ -15,6 +15,9 @@ cd: no such file or directory: <span class="path"></span>
 </Base>
 
 <script>
+  import { unlock } from "../scripts/achievements";
+
+  unlock("lost");
   document.querySelectorAll(".path").forEach((el) => (el.textContent = decodeURI(location.pathname)));
 </script>
 

@@ -6,6 +6,7 @@ import { CAT } from "./content";
 import { HOME, basename, buildFs, lookup, resolve, type NoteRef } from "./fs";
 import { dim, esc, span, toText } from "./html";
 import { highlight } from "./highlight";
+import { commandRan, unlock } from "../scripts/achievements";
 import { startMatrix } from "./matrix";
 import { THEMES, applyTheme, savedTheme } from "./themes";
 
@@ -206,6 +207,7 @@ export function mountShell(root: HTMLElement) {
   const vimStatus = (html: string) => (output.querySelector(".vim-status")!.innerHTML = html);
 
   function exitVim() {
+    unlock("vim");
     output.innerHTML = vimSaved;
     mode = "normal";
     root.classList.remove("in-vim");
@@ -313,6 +315,7 @@ export function mountShell(root: HTMLElement) {
     cursor = state.history.length;
 
     const stages = splitPipes(line).map((s) => tokenize(expandAlias(s)));
+    commandRan(stages);
     // which commands visitors actually use (just the name, nothing they typed after it)
     const first = stages[0]?.[0] ?? "";
     window.umami?.track("terminal", { command: first in commands ? first : "unknown" });
@@ -345,6 +348,7 @@ export function mountShell(root: HTMLElement) {
     if (mode === "normal") updatePrompt();
     scroll();
   }
+
 
   // --- completion ---------------------------------------------------------
 
@@ -466,6 +470,7 @@ export function mountShell(root: HTMLElement) {
     if (mode === "search") {
       const match = search.match;
       exitSearch(false);
+      if (match) unlock("search");
       return void (match ? exec(match) : print(promptLine("")));
     }
     exec(value);
@@ -507,6 +512,7 @@ export function mountShell(root: HTMLElement) {
   function screensaver() {
     if (saverOn || reduced) return;
     saverOn = true;
+    unlock("afk");
     startMatrix(root, screen, () => {
       saverOn = false;
       lastActivity = Date.now();
@@ -527,7 +533,7 @@ export function mountShell(root: HTMLElement) {
   document.addEventListener("konami", () => {
     if (busy || mode !== "normal") return;
     input.value = "";
-    print(`${span("key", "achievement unlocked:")} you know the code. ${dim("zoomies mode on in the game.")}`);
+    print(dim("zoomies mode on in the game."));
   });
 
   // --- links to notes: type `cd` first, then navigate ----------------------

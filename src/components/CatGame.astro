@@ -89,7 +89,7 @@
     "###################",
   ];
 
-  type Obstacle = { x: number; y: number; frames: Sprite[]; color: string; detail: string; speed: number };
+  type Obstacle = { x: number; y: number; frames: Sprite[]; color: string; detail: string; speed: number; passed?: boolean };
   type Fish = { x: number; y: number };
   type Popup = { x: number; y: number; text: string; age: number };
 
@@ -135,6 +135,8 @@
   let state: "idle" | "running" | "over" = "idle";
   let hi = readHi();
   let score = 0;
+  let runFish = 0; // for achievements
+  let runPigeons = 0;
   let speed = 0;
   let tick = 0;
   let overAt = 0;
@@ -199,6 +201,8 @@
 
   function reset() {
     score = 0;
+    runFish = 0;
+    runPigeons = 0;
     speed = zoomies ? 10 : 6;
     tick = 0;
     cat = { y: 0, vy: 0 };
@@ -311,7 +315,14 @@
     }
     if (jumpBuffer > 0) jumpBuffer--;
 
-    for (const o of obstacles) o.x -= speed * o.speed;
+    for (const o of obstacles) {
+      o.x -= speed * o.speed;
+      // a pigeon that got past the cat was ducked
+      if (!o.passed && o.frames.length > 1 && o.x + o.frames[0][0].length * S < catX()) {
+        o.passed = true;
+        runPigeons++;
+      }
+    }
     obstacles = obstacles.filter((o) => o.x > -60);
     for (const f of fishes) f.x -= speed;
 
@@ -324,6 +335,7 @@
     fishes = fishes.filter((f) => {
       if (overlaps(box, f.x, f.y, FISH)) {
         score += FISH_POINTS;
+        runFish++;
         popups.push({ x: f.x, y: f.y, text: `+${FISH_POINTS}`, age: 0 });
         return false;
       }
@@ -340,6 +352,9 @@
       ducking = false;
       overAt = performance.now();
       window.umami?.track("game-over", { score: Math.floor(score) });
+      document.dispatchEvent(
+        new CustomEvent("game:over", { detail: { score: Math.floor(score), fish: runFish, pigeons: runPigeons } }),
+      );
       if (Math.floor(score) > hi) {
         hi = Math.floor(score);
         writeHi(hi);

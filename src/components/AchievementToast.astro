@@ -1,0 +1,197 @@
+---
+// Game-style "achievement unlocked" toast, bottom right. Built by the script below whenever
+// src/scripts/achievements.ts unlocks something, on any page.
+---
+
+<div class="toasts" role="status" aria-live="polite"></div>
+
+<script>
+  import { ACHIEVEMENTS, progress } from "../scripts/achievements";
+  import { toastCard, type Item } from "../scripts/toast-card";
+
+  const root = document.querySelector<HTMLElement>(".toasts")!;
+  const SHOW_MS = 3800;
+  const BATCH_MS = 250; // unlocks this close together arrive as one batch
+
+  let pending: Item[] = [];
+  let batchTimer = 0;
+  const queue: Item[][] = [];
+  let showing = false;
+
+  function next() {
+    const items = queue.shift();
+    if (!items) return void (showing = false);
+    showing = true;
+    const el = toastCard(items);
+    root.appendChild(el);
+    requestAnimationFrame(() => el.classList.add("in"));
+
+    let timer = 0;
+    const close = () => {
+      clearTimeout(timer);
+      el.classList.remove("in");
+      setTimeout(() => {
+        el.remove();
+        next();
+      }, 220);
+    };
+    const arm = () => (timer = window.setTimeout(close, SHOW_MS));
+    // hovering keeps it on screen; a click dismisses it
+    el.addEventListener("pointerenter", () => clearTimeout(timer));
+    el.addEventListener("pointerleave", arm);
+    el.addEventListener("click", close);
+    arm();
+  }
+
+  function flush() {
+    const items = pending;
+    pending = [];
+    if (items.length >= 3) queue.push(items);
+    else for (const i of items) queue.push([i]);
+    if (!showing) next();
+  }
+
+  // the dev preview page fires these to replay toasts without touching saved progress
+  document.addEventListener("achievement:preview", (e) => {
+    for (const items of (e as CustomEvent<Item[][]>).detail) queue.push(items);
+    if (!showing) next();
+  });
+
+  document.addEventListener("achievement", (e) => {
+    const a = ACHIEVEMENTS.find((x) => x.id === (e as CustomEvent<string>).detail);
+    if (!a) return;
+    pending.push({ a, n: Object.keys(progress().unlocked).length });
+    clearTimeout(batchTimer);
+    batchTimer = window.setTimeout(flush, BATCH_MS);
+  });
+</script>
+
+<style>
+  .toasts {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 1000;
+    pointer-events: none;
+  }
+
+  /* cards are built at runtime (src/scripts/toast-card.ts), and the dev preview page
+     shows them outside .toasts, so everything is scoped under .toast instead */
+  :global(.toast) {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 300px;
+    padding: 10px 14px 10px 10px;
+    background: var(--dark);
+    color: var(--on-dark);
+    border: 1px solid var(--on-dark-line);
+    border-radius: var(--radius);
+    box-shadow: 0 10px 30px rgb(0 0 0 / 0.25);
+    font-size: 12px;
+    line-height: 1.45;
+    pointer-events: auto;
+    cursor: pointer;
+    opacity: 0;
+    transform: translateX(24px);
+    transition:
+      opacity 0.22s ease,
+      transform 0.22s ease;
+  }
+
+  :global(.toast.in) {
+    opacity: 1;
+    transform: none;
+  }
+
+  :global(.toast .tile) {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    background: #1c1b19;
+    border: 1px solid var(--on-dark-line);
+    border-radius: 4px;
+  }
+
+  :global(.toast .text) {
+    min-width: 0;
+    flex: 1;
+  }
+
+  :global(.toast .text p) {
+    margin: 0;
+  }
+
+  :global(.toast .eyebrow) {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  :global(.toast .count) {
+    color: var(--on-dark-muted);
+  }
+
+  :global(.toast .name) {
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 14px;
+  }
+
+  :global(.toast .desc) {
+    color: var(--on-dark-muted);
+  }
+
+  :global(.toast .tip) {
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--on-dark-muted);
+  }
+
+  :global(.toast .tip b) {
+    color: var(--on-dark);
+    font-weight: 500;
+  }
+
+  /* several at once: the tiles fan out like a little deck, newest on top */
+  :global(.toast .stack) {
+    position: relative;
+    flex: none;
+    width: 58px;
+    height: 52px;
+  }
+
+  :global(.toast .stack .tile) {
+    position: absolute;
+    left: calc(var(--i) * 7px);
+    top: calc(var(--i) * 3px);
+    width: 44px;
+    height: 44px;
+    box-shadow: -2px 0 0 var(--dark);
+  }
+
+  @media (max-width: 720px) {
+    .toasts {
+      left: 12px;
+      right: 12px;
+      bottom: 12px;
+    }
+
+    .toasts :global(.toast) {
+      width: auto;
+      transform: translateY(16px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :global(.toast) {
+      transform: none;
+    }
+  }
+</style>

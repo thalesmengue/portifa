@@ -6,6 +6,18 @@ export default defineConfig({
   site: "https://thaleslab.xyz",
   // pages stay prerendered; only routes with `prerender = false` run on the server
   adapter: node({ mode: "standalone" }),
+  integrations: [
+    {
+      // pages for checking things by eye while developing; never part of the build
+      name: "dev-pages",
+      hooks: {
+        "astro:config:setup": ({ command, injectRoute }) => {
+          if (command !== "dev") return;
+          injectRoute({ pattern: "/dev/achievements", entrypoint: "./src/dev/achievements.astro" });
+        },
+      },
+    },
+  ],
   env: {
     schema: {
       SPOTIFY_CLIENT_ID: envField.string({ context: "server", access: "secret", optional: true }),

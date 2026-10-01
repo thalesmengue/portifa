@@ -1,0 +1,96 @@
+---
+// Dev-only: every achievement toast side by side, plus buttons to replay the real animation.
+// Registered in astro.config.mjs only for `astro dev`, so it never ships.
+import Base from "../layouts/Base.astro";
+---
+
+<Base title="achievements preview">
+  <section class="card light preview">
+    <header>
+      <p class="eyebrow">dev only · not in the build</p>
+      <h1 class="sans">achievements preview</h1>
+      <p class="hint">click a card to replay its toast. nothing here touches your saved progress.</p>
+      <div class="actions">
+        <button type="button" data-play="all">play all, one by one</button>
+        <button type="button" data-play="batch">play a batch of 3</button>
+      </div>
+    </header>
+    <div class="grid"></div>
+  </section>
+</Base>
+
+<script>
+  import { ACHIEVEMENTS } from "../scripts/achievements";
+  import { toastCard, type Item } from "../scripts/toast-card";
+
+  const grid = document.querySelector<HTMLElement>(".preview .grid")!;
+  const items: Item[] = ACHIEVEMENTS.map((a, i) => ({ a, n: i + 1 }));
+  const batch = items.slice(13, 16);
+
+  const play = (groups: Item[][]) => document.dispatchEvent(new CustomEvent("achievement:preview", { detail: groups }));
+
+  // the first card shows the "type achievements" tip, like a visitor's first unlock
+  for (const group of [...items.map((i) => [i]), batch]) {
+    const el = toastCard(group);
+    el.classList.add("in");
+    el.title = "replay";
+    el.addEventListener("click", () => play([group]));
+    grid.appendChild(el);
+  }
+
+  document.querySelector('[data-play="all"]')!.addEventListener("click", () => play(items.map((i) => [i])));
+  document.querySelector('[data-play="batch"]')!.addEventListener("click", () => play([batch]));
+</script>
+
+<style>
+  .preview {
+    padding: 24px 20px 28px;
+  }
+
+  header {
+    margin-bottom: 20px;
+  }
+
+  h1 {
+    margin: 4px 0 6px;
+    font-size: 22px;
+  }
+
+  .hint {
+    margin: 0 0 14px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  button {
+    font: inherit;
+    font-size: 12px;
+    color: var(--fg);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 4px 10px;
+    cursor: pointer;
+  }
+
+  button:hover {
+    background: var(--border);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 12px;
+  }
+
+  .grid :global(.toast) {
+    width: auto;
+    box-shadow: none;
+  }
+</style>

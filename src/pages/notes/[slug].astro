@@ -30,6 +30,12 @@ const fmt = (d: Date) => d.toISOString().slice(0, 10);
   </article>
 </Base>
 
+<script>
+  import { unlock } from "../../scripts/achievements";
+
+  unlock("reader");
+</script>
+
 <style>
   article {
     padding: 28px 24px 40px;
