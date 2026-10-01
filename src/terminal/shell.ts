@@ -235,14 +235,16 @@ export function mountShell(root: HTMLElement) {
 
   function renderSearch() {
     search.match = search.index >= 0 ? state.history[search.index] : "";
+    // like bash: say so when nothing in history matches what was typed
+    label.textContent = input.value && search.index < 0 ? "(failed reverse-i-search)`" : "(reverse-i-search)`";
     hint.innerHTML = `': ${esc(search.match)}`;
-    input.style.width = `${Math.max(1, input.value.length) + 0.5}ch`;
+    // hug the query so it reads `query': match, with room for the caret
+    input.style.width = `calc(${input.value.length}ch + 2px)`;
   }
 
   function enterSearch() {
     mode = "search";
     search = { index: -1, match: "" };
-    label.textContent = "(reverse-i-search)`";
     input.value = "";
     root.classList.add("searching");
     renderSearch();
