@@ -1,6 +1,6 @@
 // Wires the terminal UI: input modes, history, completion, pipes and the intro.
 
-import { site, shell as sh, stack } from "../data";
+import { NAV, site, shell as sh, stack } from "../data";
 import { ALIASES, ARTISAN, PATH_COMMANDS, createCommands, type Io, type State } from "./commands";
 import { CAT } from "./content";
 import { HOME, basename, buildFs, lookup, resolve, type NoteRef } from "./fs";
@@ -77,7 +77,6 @@ export function mountShell(root: HTMLElement) {
   const input = root.querySelector<HTMLInputElement>(".cmd")!;
   const hint = root.querySelector<HTMLElement>(".hint")!;
   const mirror = root.querySelector<HTMLElement>(".mirror > span")!;
-  const clock = root.querySelector<HTMLElement>(".clock")!;
 
   const state: State = { cwd: HOME, prevCwd: HOME, history: [], startedAt: Date.now() };
   let mode: Mode = "normal";
@@ -476,15 +475,27 @@ export function mountShell(root: HTMLElement) {
     if (!busy && !window.getSelection()?.toString()) input.focus({ preventScroll: true });
   });
 
-  root.querySelectorAll<HTMLButtonElement>("[data-run]").forEach((b) =>
-    b.addEventListener("click", () => exec(b.dataset.run!)),
-  );
+  // --- top nav: items run their command here instead of reloading the page --
 
-  const tickClock = () => {
-    clock.textContent = new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  const navRun = (name: string) => {
+    root.scrollIntoView({ block: "nearest", behavior: reduced ? "auto" : "smooth" });
+    exec(name);
   };
-  tickClock();
-  setInterval(tickClock, 15_000);
+
+  document.addEventListener("click", (e) => {
+    const a = (e.target as Element | null)?.closest<HTMLAnchorElement>("a[data-run]");
+    if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    navRun(a.dataset.run!);
+  });
+
+  // 0-4 run the nav items, unless you're typing somewhere
+  document.addEventListener("keydown", (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey || !/^\d$/.test(e.key)) return;
+    if ((e.target as Element | null)?.closest("input, textarea, [contenteditable]")) return;
+    const name = NAV[Number(e.key)];
+    if (name) navRun(name);
+  });
 
   // --- screensaver --------------------------------------------------------
 
@@ -554,5 +565,12 @@ export function mountShell(root: HTMLElement) {
     await printFetch();
     await sleep(120);
     setBusy(false);
+
+    // arrived from a nav item on another page (/?run=notes)
+    const run = new URLSearchParams(location.search).get("run");
+    if (run && NAV.includes(run)) {
+      history.replaceState(null, "", "/");
+      exec(run);
+    }
   })();
 }

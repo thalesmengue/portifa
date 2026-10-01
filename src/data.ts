@@ -31,6 +31,9 @@ export const stack = {
   also: ["javascript", "typescript", "react native", "linux"],
 };
 
+// top nav: each item is a terminal command, and its index is a keyboard shortcut
+export const NAV = ["help", "projects", "notes", "play", "contact"];
+
 export const projects: Project[] = [
   { name: "portifa", url: "https://github.com/thalesmengue/portifa", desc: "this site" },
 ];
