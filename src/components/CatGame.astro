@@ -339,6 +339,7 @@
       zoomies = false;
       ducking = false;
       overAt = performance.now();
+      window.umami?.track("game-over", { score: Math.floor(score) });
       if (Math.floor(score) > hi) {
         hi = Math.floor(score);
         writeHi(hi);

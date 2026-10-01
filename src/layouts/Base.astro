@@ -12,6 +12,9 @@ interface Props {
 }
 
 const { title = site.name, description = `${site.name} — ${site.role}.` } = Astro.props;
+
+// privacy-friendly analytics, enabled by setting these at build time (Coolify build variables)
+const umami = { src: import.meta.env.PUBLIC_UMAMI_SRC, id: import.meta.env.PUBLIC_UMAMI_ID };
 ---
 
 <!doctype html>
@@ -25,6 +28,7 @@ const { title = site.name, description = `${site.name} — ${site.role}.` } = As
     <link rel="preload" href={sansFont} as="font" type="font/woff2" crossorigin />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)} />
+    {umami.src && umami.id && <script is:inline defer src={umami.src} data-website-id={umami.id} />}
   </head>
   <body>
     <div class="frame">

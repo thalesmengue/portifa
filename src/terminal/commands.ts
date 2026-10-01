@@ -488,6 +488,15 @@ export function createCommands(root: DirNode, notes: NoteRef[], state: State, io
       io.openVim(path, "text" in r ? r.text : null);
       return null;
     },
+    brew: ([what]) =>
+      what === "coffee" ? commands.coffee([]) : `brew: this is linux. ${dim("try: brew coffee")}`,
+    coffee: () =>
+      [
+        `${dim("HTTP/1.1")} 418 I'm a teapot`,
+        "",
+        "error: i'm a cat. i don't make coffee.",
+        dim(`(the real thing lives at ${link("/coffee", "/coffee")})`),
+      ].join("\n"),
     nano: () => "this is a vim household.",
     emacs: () => "this is a vim household.",
     rm: (args) =>

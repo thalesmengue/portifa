@@ -1,0 +1,71 @@
+---
+// Served by nginx with a real "418 I'm a teapot" status when someone visits /coffee.
+import Base from "../layouts/Base.astro";
+import { SIT } from "../lua/sprites";
+import { spriteSvg } from "../lua/svg";
+---
+
+<Base title="418 — Thales Machado">
+  <section class="card dark teapot">
+    <header class="titlebar">
+      <span class="title">418</span>
+    </header>
+    <div class="body">
+      <pre><span class="arrow">➜</span>  <span class="dir">~</span> brew coffee
+<span class="dim">HTTP/1.1</span> 418 I'm a teapot
+
+error: i'm a cat. i don't make coffee.
+<span class="dim">try a café down the street, or</span> <a href="/">cd ~</a></pre>
+      <div class="lua" set:html={spriteSvg(SIT, 6, "Lua, a gray tabby cat, sitting")} />
+    </div>
+  </section>
+</Base>
+
+<style>
+  .body {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 20px 18px 24px;
+  }
+
+  pre {
+    margin: 0;
+    font: inherit;
+    font-size: 13px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .arrow {
+    color: #8ae234;
+    font-weight: 700;
+  }
+
+  .dir {
+    color: #5fd7d7;
+    font-weight: 700;
+  }
+
+  .dim {
+    color: var(--on-dark-muted);
+  }
+
+  a {
+    color: var(--on-dark);
+    text-underline-offset: 3px;
+  }
+
+  .lua {
+    flex: none;
+    line-height: 0;
+  }
+
+  @media (max-width: 520px) {
+    .body {
+      flex-direction: column-reverse;
+      align-items: flex-start;
+    }
+  }
+</style>

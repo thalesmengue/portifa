@@ -4,6 +4,9 @@ WORKDIR /app
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 COPY . .
+ARG PUBLIC_UMAMI_SRC
+ARG PUBLIC_UMAMI_ID
+ENV PUBLIC_UMAMI_SRC=$PUBLIC_UMAMI_SRC PUBLIC_UMAMI_ID=$PUBLIC_UMAMI_ID
 RUN bun run build
 
 # serve

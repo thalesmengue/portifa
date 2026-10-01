@@ -286,6 +286,9 @@ export function mountShell(root: HTMLElement) {
     cursor = state.history.length;
 
     const stages = splitPipes(line).map((s) => tokenize(expandAlias(s)));
+    // which commands visitors actually use (just the name, nothing they typed after it)
+    const first = stages[0]?.[0] ?? "";
+    window.umami?.track("terminal", { command: first in commands ? first : "unknown" });
     let stdin: string | undefined;
     let out: string | null = null;
     for (const [name, ...args] of stages) {
@@ -488,17 +491,29 @@ export function mountShell(root: HTMLElement) {
     print(`${span("key", "achievement unlocked:")} you know the code. ${dim("zoomies mode on in the game.")}`);
   });
 
+  // --- links to notes: type `cd` first, then navigate ----------------------
+
+  document.addEventListener("click", async (e) => {
+    const a = (e.target as Element | null)?.closest<HTMLAnchorElement>("a[href^='/notes/']");
+    if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    if (busy || mode !== "normal" || reduced || !visible) return;
+    e.preventDefault();
+    setBusy(true);
+    await typeCommand(`cd ${a.pathname.replace(/^\/|\/$/g, "")}`, { wait: 80, pace: 18, after: 180 });
+    location.assign(a.href);
+  });
+
   // --- intro --------------------------------------------------------------
 
-  async function typeCommand(text: string) {
+  async function typeCommand(text: string, { wait = 500, pace = 60, after = 300 } = {}) {
     const line = print(`${ps1()} <span class="typed"></span><span class="caret"></span>`);
     const typed = line.querySelector(".typed")!;
-    await sleep(500);
+    await sleep(wait);
     for (const ch of text) {
       typed.textContent += ch;
-      await sleep(60 + Math.random() * 60);
+      await sleep(pace + Math.random() * pace);
     }
-    await sleep(300);
+    await sleep(after);
     line.querySelector(".caret")?.remove();
   }
 

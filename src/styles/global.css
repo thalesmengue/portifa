@@ -145,3 +145,38 @@ a { color: inherit; }
 .close::after {
   transform: rotate(-45deg);
 }
+
+/* page transitions between documents (no JS router; unsupported browsers just navigate) */
+
+@view-transition {
+  navigation: auto;
+}
+
+::view-transition-old(root) {
+  animation: 140ms ease-out both page-out;
+}
+
+::view-transition-new(root) {
+  animation: 220ms ease-out both page-in;
+}
+
+@keyframes page-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
