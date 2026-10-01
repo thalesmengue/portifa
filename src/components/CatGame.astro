@@ -1,0 +1,321 @@
+<section class="card dark game" aria-label="Mini game: a cat jumping over cucumbers">
+  <header class="titlebar">
+    <span class="title">cat-vs-cucumbers</span>
+    <span class="controls" aria-hidden="true">
+      <i class="min"></i><i class="max"></i><i class="close"></i>
+    </span>
+  </header>
+  <canvas tabindex="0" aria-label="Game canvas. Press space or tap to jump."></canvas>
+</section>
+
+<script>
+  // Sprites: '#' = main color, 'o' = detail color, '.' = transparent.
+  const CAT_A = [
+    "............#..#",
+    "............####",
+    "#...........#o##",
+    "#...........####",
+    ".#..........###.",
+    "..############..",
+    "..############..",
+    "..############..",
+    "...#.#....#.#...",
+    "..#...#..#...#..",
+  ];
+  const CAT_B = [
+    "............#..#",
+    "............####",
+    "#...........#o##",
+    "#...........####",
+    ".#..........###.",
+    "..############..",
+    "..############..",
+    "..############..",
+    "...##......##...",
+    "...##......##...",
+  ];
+  const CAT_DEAD = [
+    "............#..#",
+    "............####",
+    "............#o##",
+    "............####",
+    "............###.",
+    "..############..",
+    "..############..",
+    "##############..",
+    "...#.#....#.#...",
+    "..#...#..#...#..",
+  ];
+  const CUCUMBER = [
+    ".###.",
+    "##o##",
+    "#####",
+    "#o###",
+    "#####",
+    "###o#",
+    "#####",
+    "#o###",
+    "#####",
+    "##o##",
+    "#####",
+    ".###.",
+  ];
+  const CUCUMBER_SHORT = [".###.", "#o###", "#####", "###o#", "#####", "#o###", "#####", ".###."];
+  const VACUUM = ["...######...", ".####oo####.", "############", ".##......##."];
+
+  type Sprite = string[];
+  type Obstacle = { x: number; sprite: Sprite; color: string; detail: string };
+
+  const S = 4; // pixel scale
+  const STEP = 1000 / 60;
+  const STORAGE_KEY = "cat-vs-cucumbers:hi";
+
+  const css = getComputedStyle(document.documentElement);
+  const FG = css.getPropertyValue("--on-dark").trim() || "#e9e7e1";
+  const MUTED = css.getPropertyValue("--on-dark-muted").trim() || "#8b8881";
+  const GREEN = css.getPropertyValue("--accent").trim() || "#8fd16a";
+  const GREEN_DARK = "#4f7f39";
+  const LED = "#e5534b";
+
+  const root = document.querySelector<HTMLElement>(".game")!;
+  const canvas = root.querySelector("canvas")!;
+  const ctx = canvas.getContext("2d")!;
+
+  let W = 0;
+  let H = 0;
+  let ground = 0;
+
+  const readHi = () => {
+    try {
+      return Number(localStorage.getItem(STORAGE_KEY)) || 0;
+    } catch {
+      return 0;
+    }
+  };
+  const writeHi = (v: number) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, String(v));
+    } catch {}
+  };
+
+  let state: "idle" | "running" | "over" = "idle";
+  let hi = readHi();
+  let score = 0;
+  let speed = 0;
+  let tick = 0;
+  let overAt = 0;
+  let cat = { y: 0, vy: 0 };
+  let obstacles: Obstacle[] = [];
+  let nextGap = 0;
+  let specks: { x: number; y: number; w: number }[] = [];
+
+  const catW = CAT_A[0].length * S;
+  const catH = CAT_A.length * S;
+  const catX = () => Math.max(24, Math.round(W * 0.06));
+
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    W = rect.width;
+    H = rect.height;
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    ground = Math.round(H * 0.68);
+    specks = Array.from({ length: Math.ceil(W / 40) }, () => ({
+      x: Math.random() * W,
+      y: ground + 4 + Math.floor(Math.random() * 4) * S,
+      w: S * (1 + Math.floor(Math.random() * 3)),
+    }));
+    if (state !== "running") cat.y = 0;
+    draw();
+  }
+
+  function reset() {
+    score = 0;
+    speed = 6;
+    tick = 0;
+    cat = { y: 0, vy: 0 };
+    obstacles = [];
+    nextGap = W * 0.6;
+  }
+
+  function start() {
+    if (state === "running") return;
+    if (state === "over" && performance.now() - overAt < 400) return;
+    reset();
+    state = "running";
+  }
+
+  function jump() {
+    if (state !== "running") return start();
+    if (cat.y === 0) cat.vy = 13;
+  }
+
+  function spawn() {
+    const r = Math.random();
+    const pick: [Sprite, string, string] =
+      r < 0.45
+        ? [CUCUMBER, GREEN, GREEN_DARK]
+        : r < 0.75
+          ? [CUCUMBER_SHORT, GREEN, GREEN_DARK]
+          : [VACUUM, MUTED, LED];
+    obstacles.push({ x: W + 10, sprite: pick[0], color: pick[1], detail: pick[2] });
+    // a twin cucumber now and then
+    if (pick[0] !== VACUUM && Math.random() < 0.25) {
+      obstacles.push({ x: W + 10 + 7 * S, sprite: CUCUMBER_SHORT, color: GREEN, detail: GREEN_DARK });
+    }
+    nextGap = speed * (38 + Math.random() * 45);
+  }
+
+  const hit = (o: Obstacle) => {
+    const ow = o.sprite[0].length * S;
+    const oh = o.sprite.length * S;
+    const pad = S * 2;
+    const cx = catX() + pad;
+    const cy = ground - catH - cat.y + pad;
+    const oy = ground - oh;
+    return cx < o.x + ow - S && cx + catW - pad * 2 > o.x + S && cy < oy + oh && cy + catH - pad * 2 > oy + S;
+  };
+
+  function update() {
+    tick++;
+    for (const s of specks) {
+      s.x -= speed;
+      if (s.x < -s.w) s.x += W + s.w;
+    }
+
+    cat.vy -= 0.7;
+    cat.y = Math.max(0, cat.y + cat.vy);
+    if (cat.y === 0) cat.vy = 0;
+
+    for (const o of obstacles) o.x -= speed;
+    obstacles = obstacles.filter((o) => o.x > -60);
+
+    nextGap -= speed;
+    if (nextGap <= 0) spawn();
+
+    score += speed / 60;
+    speed = Math.min(13, speed + 0.0016);
+
+    if (obstacles.some(hit)) {
+      state = "over";
+      overAt = performance.now();
+      if (Math.floor(score) > hi) {
+        hi = Math.floor(score);
+        writeHi(hi);
+      }
+    }
+  }
+
+  function sprite(rows: Sprite, x: number, y: number, color: string, detail: string) {
+    for (let r = 0; r < rows.length; r++) {
+      for (let c = 0; c < rows[r].length; c++) {
+        const ch = rows[r][c];
+        if (ch === ".") continue;
+        ctx.fillStyle = ch === "o" ? detail : color;
+        ctx.fillRect(Math.round(x + c * S), Math.round(y + r * S), S, S);
+      }
+    }
+  }
+
+  const pad5 = (n: number) => String(Math.floor(n)).padStart(5, "0");
+
+  function text(str: string, x: number, y: number, color: string, size = 13, align: CanvasTextAlign = "left") {
+    ctx.fillStyle = color;
+    ctx.font = `700 ${size}px "JetBrains Mono Variable", ui-monospace, monospace`;
+    ctx.textAlign = align;
+    ctx.fillText(str, x, y);
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // ground
+    ctx.fillStyle = MUTED;
+    ctx.fillRect(0, ground, W, 1);
+    for (const s of specks) ctx.fillRect(Math.round(s.x), s.y, s.w, 1);
+
+    for (const o of obstacles) sprite(o.sprite, o.x, ground - o.sprite.length * S, o.color, o.detail);
+
+    const frame =
+      state === "over" ? CAT_DEAD : state !== "running" || cat.y > 0 ? CAT_B : Math.floor(tick / 6) % 2 ? CAT_A : CAT_B;
+    sprite(frame, catX(), ground - catH - Math.round(cat.y), FG, "#0d0d0c");
+
+    // score
+    const right = W - 20;
+    text(`HI ${pad5(hi)}  ${pad5(score)}`, right, 30, MUTED, 13, "right");
+
+    if (state === "idle") {
+      text("press space or tap to play", W / 2, ground - 80, FG, 13, "center");
+      text("jump the cucumbers. cats hate those.", W / 2, ground - 58, MUTED, 12, "center");
+    } else if (state === "over") {
+      text("G A M E   O V E R", W / 2, ground - 90, FG, 18, "center");
+      text("the cucumber won. press space to retry.", W / 2, ground - 62, MUTED, 12, "center");
+    }
+  }
+
+  let last = performance.now();
+  let acc = 0;
+  function loop(now: number) {
+    acc += Math.min(now - last, 100);
+    last = now;
+    while (acc >= STEP) {
+      if (state === "running") update();
+      acc -= STEP;
+    }
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  const isTyping = (t: EventTarget | null) => t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement;
+
+  window.addEventListener("keydown", (e) => {
+    if (!["Space", "ArrowUp", "KeyW"].includes(e.code)) return;
+    if (isTyping(e.target)) return;
+    // only hijack the keyboard when the game is focused or already running
+    if (document.activeElement !== canvas && state !== "running") return;
+    e.preventDefault();
+    jump();
+  });
+
+  canvas.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    canvas.focus({ preventScroll: true });
+    jump();
+  });
+
+  document.addEventListener("cat:play", () => {
+    canvas.focus({ preventScroll: true });
+    root.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    start();
+  });
+
+  new ResizeObserver(resize).observe(canvas);
+  document.fonts?.ready.then(draw);
+  requestAnimationFrame(loop);
+</script>
+
+<style>
+  .game {
+    display: flex;
+    flex-direction: column;
+  }
+
+  canvas {
+    flex: 1;
+    width: 100%;
+    min-height: 240px;
+    display: block;
+    outline: none;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  canvas:focus-visible {
+    box-shadow: inset 0 0 0 1px var(--on-dark-line);
+  }
+
+</style>

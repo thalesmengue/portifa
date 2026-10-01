@@ -1,22 +1,33 @@
+@import "@fontsource-variable/jetbrains-mono";
+@import "@fontsource-variable/inter";
+
 :root {
-  --bg: #fafaf9;
-  --fg: #1c1917;
-  --muted: #78716c;
-  --line: #e7e5e4;
-  --term-bg: #1c1917;
-  --term-fg: #e7e5e4;
-  --term-muted: #a8a29e;
-  --accent: #84cc16;
-  --mono: ui-monospace, "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace;
+  --page: #f4f3ee;
+  --frame: #fbfaf6;
+  --border: #e4e1d9;
+  --fg: #151513;
+  --muted: #74716a;
+  --dark: #0d0d0c;
+  --dark-border: transparent;
+  --on-dark: #e9e7e1;
+  --on-dark-muted: #8b8881;
+  --on-dark-line: #2a2926;
+  --accent: #8fd16a;
+  --term-bar: #171716;
+  --mono: "JetBrains Mono Variable", ui-monospace, Menlo, Consolas, monospace;
+  --sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --radius: 6px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0c0a09;
-    --fg: #e7e5e4;
-    --muted: #a8a29e;
-    --line: #292524;
-    --term-bg: #171412;
+    --page: #0a0a09;
+    --frame: #111110;
+    --border: #262522;
+    --fg: #ecebe6;
+    --muted: #8f8c85;
+    --dark: #070707;
+    --dark-border: #262522;
   }
 }
 
@@ -25,18 +36,112 @@
 html, body { margin: 0; }
 
 body {
-  background: var(--bg);
+  background: var(--page);
   color: var(--fg);
   font-family: var(--mono);
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.6;
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: 48px 16px;
+  -webkit-font-smoothing: antialiased;
 }
 
-main {
-  width: 100%;
-  max-width: 600px;
+a { color: inherit; }
+
+::selection { background: var(--accent); color: #0d0d0c; }
+
+.frame {
+  max-width: 1180px;
+  margin: 40px auto;
+  padding: 14px;
+  background: var(--frame);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+@media (max-width: 720px) {
+  .frame {
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    padding: 12px;
+  }
+}
+
+.card {
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.card.dark {
+  background: var(--dark);
+  color: var(--on-dark);
+  border: 1px solid var(--dark-border);
+}
+
+.card.light {
+  background: var(--frame);
+  border: 1px solid var(--border);
+}
+
+.eyebrow {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0;
+}
+
+.sans { font-family: var(--sans); }
+
+/* window title bar shared by the dark cards */
+
+.titlebar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  flex: none;
+  background: var(--term-bar);
+  color: var(--on-dark-muted);
+  font-size: 12px;
+}
+
+.controls {
+  position: absolute;
+  right: 12px;
+  display: flex;
+  gap: 14px;
+}
+
+.controls i {
+  position: relative;
+  width: 9px;
+  height: 9px;
+  opacity: 0.55;
+}
+
+.min::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 1px;
+  height: 1px;
+  background: currentColor;
+}
+
+.max {
+  border: 1px solid currentColor;
+}
+
+.close::before,
+.close::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: -1px;
+  width: 11px;
+  height: 1px;
+  background: currentColor;
+  transform: rotate(45deg);
+}
+
+.close::after {
+  transform: rotate(-45deg);
 }

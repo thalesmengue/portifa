@@ -15,16 +15,19 @@ bun run preview
 
 ## Editing content
 
-All site and terminal content lives in `src/data.ts`.
+- Site, terminal and "now" card content: `src/data.ts`
+- Notes: add a Markdown file to `src/content/notes/` (`title` and `date` in the frontmatter, `draft: true` to hide it)
 
 ## Structure
 
 ```
 src/
   data.ts                 site content
+  content/notes/          notes in markdown
   layouts/Base.astro      html shell
   pages/index.astro       home page
-  components/Terminal.astro
+  pages/notes/[slug].astro
+  components/             Terminal, CatGame, NotesList, Now, Footer
   styles/global.css
 public/                   static assets
 ```

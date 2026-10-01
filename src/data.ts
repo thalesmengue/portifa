@@ -6,6 +6,7 @@ export type Project = Link & { desc: string };
 export const site = {
   name: "Thales Machado",
   role: "software engineer",
+  domain: "thaleslab.xyz",
   whoami: "thales machado — software engineer.",
   about:
     "Software engineer working mostly with PHP, Laravel and Livewire. " +
@@ -32,3 +33,14 @@ export const contact: Link[] = [
   { name: "linkedin", url: "https://www.linkedin.com/in/thales-machado-mengue" },
   { name: "email", url: "mailto:thalesmmachado@gmail.com" },
 ];
+
+// "now" card — update whenever you feel like it.
+export const now = {
+  playing: { title: "Song title", artist: "Artist" },
+  setup: [
+    ["os", "windows + wsl2"],
+    ["shell", "zsh"],
+    ["editor", "?"],
+    ["keyboard", "?"],
+  ],
+};

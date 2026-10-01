@@ -1,0 +1,101 @@
+---
+import { render } from "astro:content";
+import Base from "../../layouts/Base.astro";
+import { getNotes, type Note } from "../../notes";
+
+export async function getStaticPaths() {
+  const notes = await getNotes();
+  return notes.map((note) => ({ params: { slug: note.id }, props: { note } }));
+}
+
+const { note } = Astro.props as { note: Note };
+const { Content } = await render(note);
+
+const fmt = (d: Date) => d.toISOString().slice(0, 10);
+---
+
+<Base title={`${note.data.title} — Thales Machado`} description={note.data.description}>
+  <article class="card light">
+    <a class="back" href="/">← cd ~</a>
+    <header>
+      <p class="eyebrow">
+        {fmt(note.data.date)}
+        {note.data.updated && <> · updated {fmt(note.data.updated)}</>}
+      </p>
+      <h1 class="sans">{note.data.title}</h1>
+    </header>
+    <div class="prose">
+      <Content />
+    </div>
+  </article>
+</Base>
+
+<style>
+  article {
+    padding: 28px 24px 40px;
+  }
+
+  .back {
+    font-size: 12px;
+    color: var(--muted);
+    text-decoration: none;
+  }
+
+  .back:hover {
+    color: var(--fg);
+  }
+
+  header,
+  .prose {
+    max-width: 680px;
+    margin: 0 auto;
+  }
+
+  header {
+    margin-top: 24px;
+  }
+
+  h1 {
+    font-size: 32px;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    margin: 6px 0 28px;
+  }
+
+  .prose {
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.7;
+  }
+
+  .prose :global(h2),
+  .prose :global(h3) {
+    letter-spacing: -0.01em;
+    margin: 2em 0 0.6em;
+  }
+
+  .prose :global(a) {
+    text-underline-offset: 3px;
+    text-decoration-color: var(--accent);
+  }
+
+  .prose :global(code) {
+    font-family: var(--mono);
+    font-size: 0.88em;
+  }
+
+  .prose :global(:not(pre) > code) {
+    background: color-mix(in srgb, var(--border) 60%, transparent);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  .prose :global(pre) {
+    padding: 16px 18px;
+    border-radius: var(--radius);
+    overflow-x: auto;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+</style>

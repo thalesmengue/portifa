@@ -1,24 +1,34 @@
 ---
 import "../styles/global.css";
+import Footer from "../components/Footer.astro";
 import { site } from "../data";
+import monoFont from "@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2?url";
+import sansFont from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
 
 interface Props {
   title?: string;
+  description?: string;
 }
 
-const { title = site.name } = Astro.props;
+const { title = site.name, description = `${site.name} — ${site.role}.` } = Astro.props;
 ---
 
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
-    <meta name="description" content={`${site.name} — ${site.role}.`} />
+    <meta name="description" content={description} />
+    <link rel="preload" href={monoFont} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={sansFont} as="font" type="font/woff2" crossorigin />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)} />
   </head>
   <body>
-    <slot />
+    <div class="frame">
+      <slot />
+      <Footer />
+    </div>
   </body>
 </html>

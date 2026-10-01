@@ -1,45 +1,93 @@
 ---
 import { shell } from "../data";
+import { getNotes } from "../notes";
 
-const ps1 = `${shell.user}@${shell.host}:~$`;
+const notes = (await getNotes()).map((n) => ({ title: n.data.title, url: `/notes/${n.id}/` }));
+const windows = ["help", "projects", "notes", "play", "contact"];
 ---
 
-<section class="terminal" aria-label="Terminal interativo">
-  <div class="bar">
-    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+<section class="card dark terminal" aria-label="Interactive terminal" data-notes={JSON.stringify(notes)}>
+  <header class="titlebar">
     <span class="title">{shell.user}@{shell.host}: ~</span>
-  </div>
+    <span class="controls" aria-hidden="true">
+      <i class="min"></i><i class="max"></i><i class="close"></i>
+    </span>
+  </header>
+
   <div class="screen" id="screen">
     <div id="output" aria-live="polite"></div>
-    <form id="prompt" autocomplete="off">
-      <label for="cmd" class="ps1">{ps1}</label>
-      <input id="cmd" type="text" spellcheck="false" autocapitalize="off" aria-label="comando" />
+    <form id="prompt" autocomplete="off" class="waiting">
+      <label for="cmd" class="ps1"><span class="arrow">➜</span> <span class="dir">~</span></label>
+      <input id="cmd" type="text" spellcheck="false" autocapitalize="off" aria-label="command" />
     </form>
   </div>
+
+  <nav class="status" aria-label="Quick commands">
+    <span class="windows">
+      {windows.map((w, i) => (
+        <button type="button" data-run={w}>
+          {i}:{w}
+        </button>
+      ))}
+    </span>
+    <span class="clock" id="clock"></span>
+  </nav>
 </section>
 
 <script>
-  import { site, shell, stack, projects, contact, type Link } from "../data";
+  import { site, shell, stack, projects, contact, now, type Link } from "../data";
 
-  const data = { ...site, stack, projects, contact };
-  const ps1 = `${shell.user}@${shell.host}:~$`;
+  const root = document.querySelector<HTMLElement>(".terminal")!;
+  const notes: Link[] = JSON.parse(root.dataset.notes ?? "[]").map((n: { title: string; url: string }) => ({
+    name: n.title,
+    url: n.url,
+  }));
 
   const screen = document.getElementById("screen")!;
   const output = document.getElementById("output")!;
   const form = document.getElementById("prompt") as HTMLFormElement;
   const input = document.getElementById("cmd") as HTMLInputElement;
+  const clock = document.getElementById("clock")!;
 
   const history: string[] = [];
   let cursor = 0;
+  let busy = true;
+
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, reduced ? 0 : ms));
 
   const esc = (s: string) =>
     s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
-  const link = ({ name, url }: Link) => `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(name)}</a>`;
+  const link = ({ name, url }: Link, external = true) =>
+    `<a href="${esc(url)}"${external ? ' target="_blank" rel="noopener"' : ""}>${esc(name)}</a>`;
+  const dim = (s: string) => `<span class="dim">${s}</span>`;
+  const rows = (pairs: string[][], pad = 10) => pairs.map(([k, v]) => `${dim(k.padEnd(pad))}${v}`).join("\n");
 
-  const CAT = [" /\\_/\\", "( o.o )", " > ^ <   meow."].join("\n");
+  const CAT = [" /\\_/\\", "( o.o )", " > ^ <"];
+
+  // fastfetch-style card: ascii cat on the left, info on the right
+  function fetch() {
+    const id = `${shell.user}@${shell.host}`;
+    const info = [
+      `<span class="key">${esc(shell.user)}</span>@<span class="key">${esc(shell.host)}</span>`,
+      dim("-".repeat(id.length)),
+      ...[
+        ["name", site.name.toLowerCase()],
+        ["role", site.role],
+        ["stack", stack.main.join(", ")],
+        ["also", stack.also.join(", ")],
+        ["shell", "zsh"],
+        ["locale", "pt-BR"],
+      ].map(([k, v]) => `<span class="row"><span class="key">${k}${dim(":")}</span><span>${esc(v)}</span></span>`),
+      "",
+      Array.from({ length: 8 }, (_, i) => `<i class="swatch c${i}"></i>`).join(""),
+    ];
+    const art = esc(CAT.join("\n"));
+    return { art, info };
+  }
 
   const files: Record<string, () => string> = {
-    "about.txt": () => esc(data.about),
+    "about.txt": () => esc(site.about),
     "stack.txt": () => commands.stack(),
     "projects.txt": () => commands.projects(),
     "contact.txt": () => commands.contact(),
@@ -47,68 +95,148 @@ const ps1 = `${shell.user}@${shell.host}:~$`;
 
   const commands: Record<string, (...args: string[]) => string | null> = {
     help: () =>
-      [
-        ["whoami", "who am i"],
-        ["about", "a few words"],
-        ["stack", "what i work with"],
-        ["projects", "things i made"],
-        ["contact", "where to find me"],
-        ["ls", "list files"],
-        ["cat <file>", "read a file"],
-        ["clear", "clear the screen"],
-      ]
-        .map(([c, d]) => `${c.padEnd(12)}<span class="dim">${d}</span>`)
-        .join("\n"),
-    whoami: () => esc(data.whoami),
-    about: () => esc(data.about),
-    stack: () =>
-      [
-        `${"main".padEnd(6)}${esc(data.stack.main.join(", "))}`,
-        `<span class="dim">${"also".padEnd(6)}${esc(data.stack.also.join(", "))}</span>`,
-      ].join("\n"),
-    projects: () => data.projects.map((p) => `${link(p)}  <span class="dim">${esc(p.desc)}</span>`).join("\n"),
-    contact: () => data.contact.map(link).join("\n"),
+      rows(
+        [
+          ["about", "a few words about me"],
+          ["stack", "what i work with"],
+          ["projects", "things i made"],
+          ["notes", "things i wrote"],
+          ["now", "what i'm up to"],
+          ["contact", "where to find me"],
+          ["play", "start the cat game"],
+          ["fastfetch", "system info, kind of"],
+          ["ls, cat", "browse files"],
+          ["clear", "clear the screen"],
+        ],
+        11,
+      ),
+    whoami: () => esc(shell.user),
+    about: () => esc(site.about),
+    stack: () => rows([["main", esc(stack.main.join(", "))], ["also", esc(stack.also.join(", "))]], 6),
+    projects: () => projects.map((p) => `${link(p)}  ${dim(esc(p.desc))}`).join("\n"),
+    notes: () => (notes.length ? notes.map((n) => link(n, false)).join("\n") : dim("no notes yet.")),
+    now: () =>
+      rows([
+        ["playing", `${esc(now.playing.title)} ${dim("by")} ${esc(now.playing.artist)}`],
+        ...now.setup.map(([k, v]) => [k, esc(v)]),
+      ]),
+    contact: () => rows(contact.map((c) => [c.name, link({ name: c.url.replace(/^mailto:|^https?:\/\/(www\.)?/, ""), url: c.url })]), 10),
+    play: () => {
+      document.dispatchEvent(new CustomEvent("cat:play"));
+      return dim("game started. press space or tap the game to jump.");
+    },
+    fastfetch: () => null, // handled in run()
     ls: () => Object.keys(files).join("  "),
     cat: (arg) => {
-      if (!arg) return esc(CAT);
-      const f = files[arg];
+      if (!arg) return esc(CAT.join("\n") + "   meow.");
+      const f = files[arg.replace(/^~\//, "")];
       return f ? f() : `cat: ${esc(arg)}: No such file or directory`;
     },
     pwd: () => `/home/${shell.user}`,
     date: () => new Date().toString(),
     echo: (...args) => esc(args.join(" ")),
     sudo: () => "nice try.",
+    exit: () => "there is no escape.",
     clear: () => {
       output.innerHTML = "";
       return null;
     },
   };
+  commands.neofetch = commands.fastfetch;
 
-  function print(html: string) {
+  const promptHtml = (cmd: string) =>
+    `<span class="ps1"><span class="arrow">➜</span> <span class="dir">~</span></span> ${esc(cmd)}`;
+
+  function print(html: string, cls = "") {
     const line = document.createElement("div");
+    if (cls) line.className = cls;
     line.innerHTML = html;
     output.appendChild(line);
+    screen.scrollTop = screen.scrollHeight;
+    return line;
   }
 
-  function run(raw: string) {
+  // print line by line, like a program writing to stdout
+  async function stream(lines: string[], delay = 28) {
+    for (const l of lines) {
+      print(l || " ");
+      await sleep(delay);
+    }
+  }
+
+  async function printFetch() {
+    const { art, info } = fetch();
+    const block = print(`<pre class="art">${art}</pre><div class="info"></div>`, "fetch");
+    const box = block.querySelector(".info")!;
+    for (const l of info) {
+      const row = document.createElement("div");
+      row.innerHTML = l || " ";
+      box.appendChild(row);
+      screen.scrollTop = screen.scrollHeight;
+      await sleep(45);
+    }
+  }
+
+  function setBusy(v: boolean) {
+    busy = v;
+    form.classList.toggle("waiting", v);
+  }
+
+  async function run(raw: string) {
     const line = raw.trim();
-    print(`<span class="ps1">${ps1}</span> ${esc(line)}`);
+    print(promptHtml(line));
     if (!line) return;
 
     history.push(line);
     cursor = history.length;
 
     const [name, ...args] = line.split(/\s+/);
+    if (name === "fastfetch" || name === "neofetch") {
+      setBusy(true);
+      await printFetch();
+      setBusy(false);
+      return;
+    }
+
     const cmd = commands[name];
-    const result = cmd ? cmd(...args) : `${esc(name)}: command not found. try <span class="dim">help</span>`;
-    if (result) print(result);
+    const result = cmd ? cmd(...args) : `zsh: command not found: ${esc(name)}`;
+    if (result) {
+      setBusy(true);
+      await stream(result.split("\n"), 18);
+      setBusy(false);
+    }
+  }
+
+  async function type(text: string) {
+    const line = print(`${promptHtml("")}<span class="typed"></span><span class="caret"></span>`);
+    const typed = line.querySelector(".typed")!;
+    await sleep(500);
+    for (const ch of text) {
+      typed.textContent += ch;
+      await sleep(60 + Math.random() * 60);
+    }
+    await sleep(300);
+    line.querySelector(".caret")?.remove();
+  }
+
+  async function intro() {
+    await document.fonts?.ready;
+    await type("fastfetch");
+    await printFetch();
+    await sleep(120);
+    setBusy(false);
+  }
+
+  async function exec(cmd: string) {
+    if (busy) return;
+    input.value = "";
+    await run(cmd);
+    screen.scrollTop = screen.scrollHeight;
   }
 
   form.addEventListener("submit", (e) => {
     e.preventDefault();
-    run(input.value);
-    input.value = "";
-    screen.scrollTop = screen.scrollHeight;
+    exec(input.value);
   });
 
   input.addEventListener("keydown", (e) => {
@@ -136,54 +264,50 @@ const ps1 = `${shell.user}@${shell.host}:~$`;
   });
 
   screen.addEventListener("click", () => {
-    if (!window.getSelection()?.toString()) input.focus();
+    if (!busy && !window.getSelection()?.toString()) input.focus({ preventScroll: true });
   });
 
-  print(`<span class="dim">welcome. type</span> help <span class="dim">to see available commands.</span>`);
+  root.querySelectorAll<HTMLButtonElement>("[data-run]").forEach((b) =>
+    b.addEventListener("click", () => exec(b.dataset.run!)),
+  );
+
+  const tickClock = () => {
+    clock.textContent = new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  };
+  tickClock();
+  setInterval(tickClock, 15_000);
+
+  intro();
 </script>
 
 <style>
   .terminal {
-    background: var(--term-bg);
-    color: var(--term-fg);
-    border-radius: 8px;
-    overflow: hidden;
+    --t-green: #8ae234;
+    --t-cyan: #5fd7d7;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
     font-size: 13px;
   }
 
-  .bar {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 10px 12px;
-    border-bottom: 1px solid #ffffff10;
-  }
-
-  .dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: #44403c;
-  }
-
-  .title {
-    flex: 1;
-    text-align: center;
-    color: var(--term-muted);
-    font-size: 12px;
-    margin-right: 48px;
-  }
-
   .screen {
-    height: 260px;
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
-    padding: 12px 14px;
+    padding: 16px 18px 12px;
     cursor: text;
+    scrollbar-width: thin;
+    scrollbar-color: var(--on-dark-line) transparent;
   }
 
   #prompt {
     display: flex;
     gap: 8px;
+  }
+
+  /* keep the prompt's space reserved while a command runs, so nothing jumps */
+  #prompt.waiting {
+    opacity: 0;
   }
 
   #cmd {
@@ -194,8 +318,50 @@ const ps1 = `${shell.user}@${shell.host}:~$`;
     outline: 0;
     color: inherit;
     font: inherit;
-    caret-color: var(--accent);
+    caret-color: var(--on-dark);
     padding: 0;
+  }
+
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: none;
+    height: 30px;
+    padding: 0 10px;
+    background: var(--term-bar);
+    font-size: 12px;
+    color: var(--on-dark-muted);
+    white-space: nowrap;
+  }
+
+  .windows {
+    flex: 1;
+    display: flex;
+    gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .windows button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: 0;
+    padding: 2px 6px;
+    border-radius: 2px;
+    cursor: pointer;
+  }
+
+  .windows button:hover,
+  .windows button:focus-visible {
+    color: var(--dark);
+    background: var(--t-green);
+    outline: none;
+  }
+
+  .clock {
+    color: var(--on-dark);
   }
 
   /* output lines are injected at runtime, so they are outside the scoped styles */
@@ -205,15 +371,93 @@ const ps1 = `${shell.user}@${shell.host}:~$`;
   }
 
   .terminal :global(.ps1) {
-    color: var(--accent);
     white-space: nowrap;
+    font-weight: 700;
+  }
+
+  .terminal :global(.arrow) {
+    color: var(--t-green);
+  }
+
+  .terminal :global(.dir) {
+    color: var(--t-cyan);
   }
 
   .terminal :global(.dim) {
-    color: var(--term-muted);
+    color: var(--on-dark-muted);
   }
 
-  .terminal :global(a) {
-    color: var(--term-fg);
+  .terminal :global(.key) {
+    color: var(--t-green);
+    font-weight: 700;
+  }
+
+  .terminal :global(#output a) {
+    color: var(--on-dark);
+    text-decoration-color: var(--on-dark-muted);
+    text-underline-offset: 3px;
+  }
+
+  .terminal :global(.fetch) {
+    display: flex;
+    gap: 28px;
+    margin: 10px 0 14px;
+  }
+
+  .terminal :global(.art) {
+    margin: 0;
+    font: inherit;
+    color: var(--t-green);
+    font-weight: 700;
+    padding-top: 2px;
+  }
+
+  .terminal :global(.info) {
+    min-width: 0;
+  }
+
+  .terminal :global(.row) {
+    display: flex;
+    gap: 1ch;
+  }
+
+  .terminal :global(.row .key) {
+    flex: none;
+  }
+
+  .terminal :global(.swatch) {
+    display: inline-block;
+    width: 18px;
+    height: 12px;
+  }
+
+  .terminal :global(.c0) { background: #2e3436; }
+  .terminal :global(.c1) { background: #ef2929; }
+  .terminal :global(.c2) { background: #8ae234; }
+  .terminal :global(.c3) { background: #fce94f; }
+  .terminal :global(.c4) { background: #729fcf; }
+  .terminal :global(.c5) { background: #ad7fa8; }
+  .terminal :global(.c6) { background: #34e2e2; }
+  .terminal :global(.c7) { background: #eeeeec; }
+
+  .terminal :global(.caret) {
+    display: inline-block;
+    width: 0.6em;
+    height: 1.15em;
+    vertical-align: text-bottom;
+    background: var(--on-dark);
+    animation: blink 1s steps(1) infinite;
+  }
+
+  @keyframes blink {
+    50% {
+      opacity: 0;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .terminal :global(.art) {
+      display: none;
+    }
   }
 </style>

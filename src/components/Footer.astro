@@ -1,0 +1,74 @@
+---
+import { site, contact } from "../data";
+
+const year = new Date().getFullYear();
+
+const icons: Record<string, string> = {
+  github:
+    '<path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 0-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.2.5-2.3 1.3-3.1-.2-.4-.6-1.6 0-3.2 0 0 1-.3 3.4 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.7 1.6.3 2.8.1 3.2.8.8 1.3 1.9 1.3 3.1 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5Z"/>',
+  linkedin:
+    '<path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM3 9.75h4v11H3v-11Zm6.5 0h3.8v1.5h.06c.53-1 1.83-2.06 3.76-2.06 4.02 0 4.76 2.64 4.76 6.08v5.48h-4v-4.86c0-1.16-.02-2.65-1.62-2.65-1.62 0-1.86 1.27-1.86 2.57v4.94h-4v-11Z"/>',
+  email:
+    '<path d="M2 5.5A1.5 1.5 0 0 1 3.5 4h17A1.5 1.5 0 0 1 22 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-17A1.5 1.5 0 0 1 2 18.5v-13Zm2.2.5 7.8 6.2L19.8 6H4.2ZM20 7.9l-7.4 5.9a1 1 0 0 1-1.2 0L4 7.9V18h16V7.9Z"/>',
+};
+---
+
+<footer>
+  <span class="meta"><span class="flag">BR</span> · {year} <a href="/">{site.domain}</a></span>
+  <nav>
+    {contact.map((c) => (
+      <a
+        href={c.url}
+        aria-label={c.name}
+        title={c.name}
+        target={c.url.startsWith("http") ? "_blank" : undefined}
+        rel="noopener"
+      >
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true" set:html={icons[c.name]} />
+      </a>
+    ))}
+  </nav>
+</footer>
+
+<style>
+  footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 14px;
+    padding: 14px 8px 2px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .flag {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+
+  .meta a {
+    text-decoration: none;
+  }
+
+  .meta a:hover {
+    color: var(--fg);
+  }
+
+  nav {
+    display: flex;
+    gap: 18px;
+  }
+
+  nav a {
+    color: var(--fg);
+    display: grid;
+    opacity: 0.85;
+    transition: opacity 0.15s;
+  }
+
+  nav a:hover {
+    opacity: 1;
+  }
+</style>
