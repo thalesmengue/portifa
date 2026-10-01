@@ -1,17 +1,28 @@
 # portifa
 
-Minimal personal portfolio with a tiny fake Linux terminal.
+Minimal personal portfolio with a tiny fake Linux terminal, built with [Astro](https://astro.build).
 
-Plain HTML, CSS and JavaScript — no build step.
-
-## Run locally
+## Development
 
 ```sh
-python3 -m http.server 8000
+npm install
+npm run dev      # http://localhost:4321
+npm run build    # static output in dist/
+npm run preview
 ```
-
-Then open http://localhost:8000.
 
 ## Editing content
 
-All terminal content lives in the `data` object at the top of `main.js`.
+All site and terminal content lives in `src/data.ts`.
+
+## Structure
+
+```
+src/
+  data.ts                 site content
+  layouts/Base.astro      html shell
+  pages/index.astro       home page
+  components/Terminal.astro
+  styles/global.css
+public/                   static assets
+```

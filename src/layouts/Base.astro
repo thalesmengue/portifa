@@ -1,0 +1,24 @@
+---
+import "../styles/global.css";
+import { site } from "../data";
+
+interface Props {
+  title?: string;
+}
+
+const { title = site.name } = Astro.props;
+---
+
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={`${site.name} — ${site.role}.`} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

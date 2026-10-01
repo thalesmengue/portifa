@@ -1,0 +1,42 @@
+:root {
+  --bg: #fafaf9;
+  --fg: #1c1917;
+  --muted: #78716c;
+  --line: #e7e5e4;
+  --term-bg: #1c1917;
+  --term-fg: #e7e5e4;
+  --term-muted: #a8a29e;
+  --accent: #84cc16;
+  --mono: ui-monospace, "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0c0a09;
+    --fg: #e7e5e4;
+    --muted: #a8a29e;
+    --line: #292524;
+    --term-bg: #171412;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 15px;
+  line-height: 1.6;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 48px 16px;
+}
+
+main {
+  width: 100%;
+  max-width: 600px;
+}
