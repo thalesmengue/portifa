@@ -4,6 +4,9 @@ import Terminal from "../components/Terminal.astro";
 import CatGame from "../components/CatGame.astro";
 import NotesList from "../components/NotesList.astro";
 import Now from "../components/Now.astro";
+
+// rendered per request so the middleware can answer curl with plain text
+export const prerender = false;
 ---
 
 <Base>

@@ -1,8 +1,11 @@
 ---
-// Served by nginx with a real "418 I'm a teapot" status when someone visits /coffee.
+// /coffee answers with a real "418 I'm a teapot" status.
 import Base from "../layouts/Base.astro";
 import { SIT } from "../lua/sprites";
 import { spriteSvg } from "../lua/svg";
+
+export const prerender = false;
+Astro.response.status = 418;
 ---
 
 <Base title="418 — Thales Machado">

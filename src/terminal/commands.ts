@@ -15,6 +15,7 @@ import {
   type NoteRef,
 } from "./fs";
 import { THEMES } from "./themes";
+import { nowPlaying } from "../scripts/now-playing";
 
 export type Io = {
   print(html: string): void;
@@ -187,7 +188,8 @@ export function createCommands(root: DirNode, notes: NoteRef[], state: State, io
         const routes: [string, string][] = [
           ["/", "home"],
           ["notes/{slug}", "notes.show"],
-          ["curl.txt", "curl"],
+          ["coffee", "teapot"],
+          ["api/now-playing", "spotify.now"],
         ];
         return [
           "",
@@ -261,11 +263,17 @@ export function createCommands(root: DirNode, notes: NoteRef[], state: State, io
     stack: () => rows([["main", esc(stack.main.join(", "))], ["also", esc(stack.also.join(", "))]], 6),
     projects: () => projects.map((p) => `${link(p.name, p.url)}  ${dim(esc(p.desc))}`).join("\n"),
     notes: () => (notes.length ? notes.map((n) => link(n.title, n.url)).join("\n") : dim("no notes yet.")),
-    now: () =>
-      rows([
-        ["playing", `${esc(now.playing.title)} ${dim("by")} ${esc(now.playing.artist)}`],
+    now: async () => {
+      const t = await nowPlaying();
+      const song = t ?? now.playing;
+      return rows([
+        [
+          t && !t.playing ? "last played" : "playing",
+          `${t ? link(t.title, t.url) : esc(song.title)} ${dim("by")} ${esc(song.artist)}${t ? dim(" · on spotify") : ""}`,
+        ],
         ...now.setup.map(([k, v]) => [k, esc(v)] as [string, string]),
-      ]),
+      ], 13);
+    },
     contact: () => rows(contact.map((c) => [c.name, link(c.url.replace(/^mailto:|^https?:\/\/(www\.)?/, ""), c.url)])),
     play: () => {
       io.play();

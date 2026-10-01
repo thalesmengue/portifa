@@ -1,9 +1,8 @@
-// What `curl thaleslab.xyz` returns: nginx serves this file to CLI user agents.
+// What `curl thaleslab.xyz` returns: the middleware serves this to CLI user agents.
 
-import type { APIRoute } from "astro";
-import { site, shell, stack, projects, contact } from "../data";
-import { CAT } from "../terminal/content";
-import { getNotes } from "../notes";
+import { site, shell, stack, projects, contact } from "./data";
+import { CAT } from "./terminal/content";
+import { getNotes } from "./notes";
 
 const ESC = "\x1b[";
 const c = (code: string) => (s: string) => `${ESC}${code}m${s}${ESC}0m`;
@@ -26,7 +25,7 @@ function wrap(text: string, width: number) {
   return line ? [...lines, line] : lines;
 }
 
-export const GET: APIRoute = async () => {
+export async function curlPage() {
   const site_ = `https://${site.domain}`;
   const id = `${shell.user}@${shell.host}`;
 
@@ -73,7 +72,5 @@ export const GET: APIRoute = async () => {
     "",
   ];
 
-  return new Response(lines.join("\n"), {
-    headers: { "Content-Type": "text/plain; charset=utf-8" },
-  });
-};
+  return lines.join("\n");
+}
