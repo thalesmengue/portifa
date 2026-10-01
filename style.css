@@ -1,0 +1,130 @@
+:root {
+  --bg: #fafaf9;
+  --fg: #1c1917;
+  --muted: #78716c;
+  --line: #e7e5e4;
+  --term-bg: #1c1917;
+  --term-fg: #e7e5e4;
+  --term-muted: #a8a29e;
+  --accent: #84cc16;
+  --mono: ui-monospace, "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0c0a09;
+    --fg: #e7e5e4;
+    --muted: #a8a29e;
+    --line: #292524;
+    --term-bg: #171412;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 15px;
+  line-height: 1.6;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 48px 16px;
+}
+
+main {
+  width: 100%;
+  max-width: 600px;
+}
+
+h1 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.muted { color: var(--muted); margin: 0; }
+
+.links {
+  display: flex;
+  gap: 20px;
+  margin: 24px 0 40px;
+}
+
+.links a {
+  color: var(--fg);
+  text-decoration: none;
+  border-bottom: 1px solid var(--line);
+  transition: border-color .15s;
+}
+
+.links a:hover { border-color: var(--fg); }
+
+/* terminal */
+
+.terminal {
+  background: var(--term-bg);
+  color: var(--term-fg);
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 13px;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #ffffff10;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #44403c;
+}
+
+.title {
+  flex: 1;
+  text-align: center;
+  color: var(--term-muted);
+  font-size: 12px;
+  margin-right: 48px;
+}
+
+.screen {
+  height: 260px;
+  overflow-y: auto;
+  padding: 12px 14px;
+  cursor: text;
+}
+
+#output > div { white-space: pre-wrap; word-break: break-word; }
+
+.ps1 { color: var(--accent); white-space: nowrap; }
+
+.dim { color: var(--term-muted); }
+
+.terminal a { color: var(--term-fg); }
+
+#prompt {
+  display: flex;
+  gap: 8px;
+}
+
+#cmd {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  color: inherit;
+  font: inherit;
+  caret-color: var(--accent);
+  padding: 0;
+}

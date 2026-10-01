@@ -1,0 +1,119 @@
+// Edit everything about the terminal content here.
+const data = {
+  whoami: "thales machado — software developer.",
+  about: "I build web applications. I like simple software and quiet tools.",
+  projects: [
+    { name: "portifa", url: "https://github.com/thalesmengue/portifa", desc: "this site" },
+  ],
+  contact: [
+    { name: "github", url: "https://github.com/thalesmengue" },
+    { name: "linkedin", url: "https://www.linkedin.com/in/thalesmengue" },
+    { name: "email", url: "mailto:thalesmmachado@gmail.com" },
+  ],
+};
+
+const screen = document.getElementById("screen");
+const output = document.getElementById("output");
+const form = document.getElementById("prompt");
+const input = document.getElementById("cmd");
+
+const history = [];
+let cursor = 0;
+
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const link = ({ name, url }) => `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(name)}</a>`;
+
+const files = {
+  "about.txt": () => esc(data.about),
+  "projects.txt": () => commands.projects(),
+  "contact.txt": () => commands.contact(),
+};
+
+const commands = {
+  help: () =>
+    [
+      ["whoami", "who am i"],
+      ["about", "a few words"],
+      ["projects", "things i made"],
+      ["contact", "where to find me"],
+      ["ls", "list files"],
+      ["cat <file>", "read a file"],
+      ["clear", "clear the screen"],
+    ].map(([c, d]) => `${c.padEnd(12)}<span class="dim">${d}</span>`).join("\n"),
+  whoami: () => esc(data.whoami),
+  about: () => esc(data.about),
+  projects: () =>
+    data.projects.map((p) => `${link(p)}  <span class="dim">${esc(p.desc)}</span>`).join("\n"),
+  contact: () => data.contact.map(link).join("\n"),
+  ls: () => Object.keys(files).join("  "),
+  cat: (arg) => {
+    if (!arg) return "cat: missing file operand";
+    const f = files[arg];
+    return f ? f() : `cat: ${esc(arg)}: No such file or directory`;
+  },
+  pwd: () => "/home/thales",
+  date: () => new Date().toString(),
+  echo: (...args) => esc(args.join(" ")),
+  sudo: () => "nice try.",
+  clear: () => {
+    output.innerHTML = "";
+    return null;
+  },
+};
+
+function print(html) {
+  const line = document.createElement("div");
+  line.innerHTML = html;
+  output.appendChild(line);
+}
+
+function run(raw) {
+  const line = raw.trim();
+  print(`<span class="ps1">thales@portifa:~$</span> ${esc(line)}`);
+  if (!line) return;
+
+  history.push(line);
+  cursor = history.length;
+
+  const [name, ...args] = line.split(/\s+/);
+  const cmd = commands[name];
+  const result = cmd ? cmd(...args) : `${esc(name)}: command not found. try <span class="dim">help</span>`;
+  if (result) print(result);
+}
+
+form.addEventListener("submit", (e) => {
+  e.preventDefault();
+  run(input.value);
+  input.value = "";
+  screen.scrollTop = screen.scrollHeight;
+});
+
+input.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowUp" && cursor > 0) {
+    input.value = history[--cursor];
+    e.preventDefault();
+  } else if (e.key === "ArrowDown") {
+    cursor = Math.min(cursor + 1, history.length);
+    input.value = history[cursor] ?? "";
+    e.preventDefault();
+  } else if (e.key === "Tab") {
+    e.preventDefault();
+    const [name, arg] = input.value.split(/\s+/);
+    if (arg !== undefined) {
+      const match = Object.keys(files).find((f) => f.startsWith(arg));
+      if (match) input.value = `${name} ${match}`;
+    } else {
+      const match = Object.keys(commands).find((c) => c.startsWith(name));
+      if (match) input.value = match;
+    }
+  } else if (e.key === "l" && e.ctrlKey) {
+    e.preventDefault();
+    commands.clear();
+  }
+});
+
+screen.addEventListener("click", () => {
+  if (!window.getSelection().toString()) input.focus();
+});
+
+print(`<span class="dim">welcome. type</span> help <span class="dim">to see available commands.</span>`);

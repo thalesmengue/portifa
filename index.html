@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Thales Machado</title>
+  <meta name="description" content="Thales Machado — software developer.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&gt;_</text></svg>">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Thales Machado</h1>
+      <p class="muted">software developer</p>
+    </header>
+
+    <nav class="links">
+      <a href="https://github.com/thalesmengue" target="_blank" rel="noopener">github</a>
+      <a href="https://www.linkedin.com/in/thalesmengue" target="_blank" rel="noopener">linkedin</a>
+      <a href="mailto:thalesmmachado@gmail.com">email</a>
+    </nav>
+
+    <section class="terminal" aria-label="Terminal interativo">
+      <div class="bar">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="title">thales@portifa: ~</span>
+      </div>
+      <div class="screen" id="screen">
+        <div id="output" aria-live="polite"></div>
+        <form id="prompt" autocomplete="off">
+          <label for="cmd" class="ps1">thales@portifa:~$</label>
+          <input id="cmd" type="text" spellcheck="false" autocapitalize="off" aria-label="comando">
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <script src="main.js"></script>
+</body>
+</html>
