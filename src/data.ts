@@ -41,13 +41,7 @@ export const contact: Link[] = [
   { name: "email", url: "mailto:thalesmmachado@gmail.com" },
 ];
 
-// "now" card — update whenever you feel like it.
+// "now" card fallback, shown only when Spotify can't be reached.
 export const now = {
-  playing: { title: "Song title", artist: "Artist" },
-  setup: [
-    ["os", "windows + wsl2"],
-    ["shell", "zsh"],
-    ["editor", "?"],
-    ["keyboard", "?"],
-  ],
+  playing: { title: "silence", artist: "probably debugging something" },
 };

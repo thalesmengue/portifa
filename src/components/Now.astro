@@ -1,7 +1,7 @@
 ---
 import { now } from "../data";
 import { configured, nowPlaying } from "../spotify";
-import type { Track } from "../track";
+import { when, type Track } from "../track";
 import spotifyLogo from "../assets/spotify-logo.svg?raw";
 
 // first paint comes from the server (cached for 20s); the script below keeps it fresh.
@@ -28,37 +28,37 @@ const playing = track?.playing ?? false;
       <p class="artist" title={track?.artist}>{track?.artist ?? now.playing.artist}</p>
     </div>
   </div>
-  <div class={`progress${track ? " live" : ""}`} aria-hidden="true"><span></span></div>
-  <!-- Spotify asks for its full logo next to anything it supplies -->
-  <a class="spotify" href={track?.url} target="_blank" rel="noopener" aria-label="Listen on Spotify" hidden={!track}>
-    <Fragment set:html={spotifyLogo} />
-  </a>
 
-  <p class="fn">setup.list()</p>
-  <dl>
-    {now.setup.map(([k, v]) => (
-      <div>
-        <dt>{k}</dt>
-        <dd>{v}</dd>
-      </div>
-    ))}
-  </dl>
+  <div class={`progress${track ? " live" : ""}`} aria-hidden="true"><span></span></div>
+
+  <div class="meta" hidden={!track}>
+    <!-- Spotify asks for its full logo next to anything it supplies -->
+    <a class="spotify" href={track?.url} target="_blank" rel="noopener" aria-label="Listen on Spotify">
+      <Fragment set:html={spotifyLogo} />
+    </a>
+    <span class="when">{track && when(track)}</span>
+  </div>
 </aside>
 
 <script>
   import { nowPlaying, type Track } from "../scripts/now-playing";
+  import { when } from "../track";
 
   const POLL = 30_000;
-  const player = document.querySelector<HTMLElement>(".now .player")!;
+  const card = document.querySelector<HTMLElement>(".now")!;
+  const player = card.querySelector<HTMLElement>(".player")!;
   const art = player.querySelector<HTMLElement>(".art")!;
-  const eyebrow = player.querySelector<HTMLElement>(".eyebrow .state")!;
+  const state = player.querySelector<HTMLElement>(".eyebrow .state")!;
   const song = player.querySelector<HTMLAnchorElement>(".song a")!;
   const artist = player.querySelector<HTMLElement>(".artist")!;
-  const bar = document.querySelector<HTMLElement>(".now .progress")!;
+  const bar = card.querySelector<HTMLElement>(".progress")!;
   const fill = bar.querySelector<HTMLElement>("span")!;
-  const spotify = document.querySelector<HTMLAnchorElement>(".now .spotify")!;
+  const meta = card.querySelector<HTMLElement>(".meta")!;
+  const spotify = meta.querySelector<HTMLAnchorElement>(".spotify")!;
+  const time = meta.querySelector<HTMLElement>(".when")!;
 
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let current: { track: Track; at: number } | null = null;
 
   // the bar is a CSS animation: duration = track length, negative delay = how far in we are
   function progress(playing: boolean, at: number, duration: number) {
@@ -70,9 +70,18 @@ const playing = track?.playing ?? false;
     fill.style.animation = `progress ${duration}ms linear ${-at}ms 1 forwards`;
   }
 
+  // the clock keeps counting between polls
+  function tick() {
+    if (!current) return;
+    const { track: t, at } = current;
+    const elapsed = t.playing ? Math.min(t.progress + Date.now() - at, t.duration) : 0;
+    time.textContent = when({ ...t, progress: elapsed });
+  }
+
   function render(t: Track) {
+    current = { track: t, at: Date.now() };
     player.classList.toggle("idle", !t.playing);
-    eyebrow.textContent = t.playing ? "now playing" : "last played";
+    state.textContent = t.playing ? "now playing" : "last played";
     song.textContent = t.title;
     song.href = t.url;
     song.target = "_blank";
@@ -81,15 +90,16 @@ const playing = track?.playing ?? false;
     artist.textContent = t.artist;
     artist.title = t.artist;
     spotify.href = t.url;
-    spotify.hidden = false;
+    meta.hidden = false;
 
     let img = art.querySelector("img");
     if (t.art) {
-      img ??= art.insertAdjacentElement("afterbegin", Object.assign(new Image(72, 72), { alt: "" })) as HTMLImageElement;
+      img ??= art.appendChild(Object.assign(new Image(72, 72), { alt: "" }));
       if (img.src !== t.art) img.src = t.art;
     } else img?.remove();
 
     progress(t.playing, t.progress, t.duration);
+    tick();
   }
 
   async function refresh() {
@@ -100,6 +110,7 @@ const playing = track?.playing ?? false;
 
   refresh(); // syncs the progress bar right away
   setInterval(refresh, POLL);
+  setInterval(tick, 1000);
   document.addEventListener("visibilitychange", refresh);
 </script>
 
@@ -211,30 +222,6 @@ const playing = track?.playing ?? false;
     overflow: hidden;
   }
 
-  .spotify {
-    display: block;
-    width: 74px; /* Spotify's minimum for the full logo is 70px */
-    margin-bottom: 12px;
-    color: #000;
-    line-height: 0;
-  }
-
-  .spotify[hidden] {
-    display: none;
-  }
-
-  .spotify :global(svg) {
-    width: 100%;
-    height: auto;
-  }
-
-  /* logo only in black, white or Spotify green */
-  @media (prefers-color-scheme: dark) {
-    .spotify {
-      color: #fff;
-    }
-  }
-
   .progress span {
     display: block;
     height: 100%;
@@ -254,30 +241,40 @@ const playing = track?.playing ?? false;
     to { transform: scaleX(1); }
   }
 
-  .fn {
-    margin: 0 0 8px;
-    padding-top: 16px;
-    border-top: 1px solid var(--border);
-  }
-
-  dl {
-    margin: 0;
-    font-size: 13px;
-  }
-
-  dl div {
+  .meta {
     display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: 12px;
-    padding: 3px 0;
   }
 
-  dt {
-    width: 72px;
+  .meta[hidden] {
+    display: none;
+  }
+
+  .spotify {
+    width: 74px; /* Spotify's minimum for the full logo is 70px */
+    flex: none;
+    color: #000;
+    line-height: 0;
+  }
+
+  .spotify :global(svg) {
+    width: 100%;
+    height: auto;
+  }
+
+  /* logo only in black, white or Spotify green */
+  @media (prefers-color-scheme: dark) {
+    .spotify {
+      color: #fff;
+    }
+  }
+
+  .when {
+    font-size: 12px;
     color: var(--muted);
-  }
-
-  dd {
-    margin: 0;
+    font-variant-numeric: tabular-nums;
   }
 
   @media (max-width: 860px) {

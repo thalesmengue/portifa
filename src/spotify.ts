@@ -48,7 +48,7 @@ async function get<T>(path: string): Promise<T | null> {
   return (await res.json()) as T;
 }
 
-function toTrack(t: SpotifyTrack, playing: boolean, progress = 0): Track {
+function toTrack(t: SpotifyTrack, playing: boolean, progress = 0, playedAt: string | null = null): Track {
   // smallest cover that still looks sharp in the 72px box
   const art = [...t.album.images].sort((a, b) => a.width - b.width).find((i) => i.width >= 144) ?? t.album.images[0];
   return {
@@ -59,6 +59,7 @@ function toTrack(t: SpotifyTrack, playing: boolean, progress = 0): Track {
     art: art?.url ?? null,
     progress,
     duration: t.duration_ms,
+    playedAt,
   };
 }
 
@@ -68,9 +69,9 @@ async function load(): Promise<Track | null> {
   );
   if (now?.item && now.currently_playing_type === "track") return toTrack(now.item, now.is_playing, now.progress_ms);
 
-  const recent = await get<{ items: { track: SpotifyTrack }[] }>("/me/player/recently-played?limit=1");
-  const last = recent?.items[0]?.track;
-  return last ? toTrack(last, false) : null;
+  const recent = await get<{ items: { track: SpotifyTrack; played_at: string }[] }>("/me/player/recently-played?limit=1");
+  const last = recent?.items[0];
+  return last ? toTrack(last.track, false, 0, last.played_at) : null;
 }
 
 export async function nowPlaying(): Promise<Track | null> {

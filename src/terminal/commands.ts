@@ -16,6 +16,7 @@ import {
 } from "./fs";
 import { THEMES } from "./themes";
 import { nowPlaying } from "../scripts/now-playing";
+import { when } from "../track";
 
 export type Io = {
   print(html: string): void;
@@ -243,7 +244,7 @@ export function createCommands(root: DirNode, notes: NoteRef[], state: State, io
         "",
         rows(
           [
-            ["stack, now", "what i use and what i'm up to"],
+            ["stack, now", "what i use, what i'm listening to"],
             ["ls, cd, cat", "look around (try ls -la)"],
             ["tree", "the whole filesystem"],
             ["fastfetch", "system info, kind of"],
@@ -265,14 +266,14 @@ export function createCommands(root: DirNode, notes: NoteRef[], state: State, io
     notes: () => (notes.length ? notes.map((n) => link(n.title, n.url)).join("\n") : dim("no notes yet.")),
     now: async () => {
       const t = await nowPlaying();
-      const song = t ?? now.playing;
-      return rows([
+      if (!t) return `${esc(now.playing.title)} ${dim(`· ${esc(now.playing.artist)}`)}`;
+      return rows(
         [
-          t && !t.playing ? "last played" : "playing",
-          `${t ? link(t.title, t.url) : esc(song.title)} ${dim("by")} ${esc(song.artist)}${t ? dim(" · on spotify") : ""}`,
+          [t.playing ? "playing" : "last played", `${link(t.title, t.url)} ${dim("by")} ${esc(t.artist)}`],
+          [t.playing ? "at" : "when", `${esc(when(t))} ${dim("· on spotify")}`],
         ],
-        ...now.setup.map(([k, v]) => [k, esc(v)] as [string, string]),
-      ], 13);
+        13,
+      );
     },
     contact: () => rows(contact.map((c) => [c.name, link(c.url.replace(/^mailto:|^https?:\/\/(www\.)?/, ""), c.url)])),
     play: () => {
