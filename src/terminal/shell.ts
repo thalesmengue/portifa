@@ -494,14 +494,6 @@ export function mountShell(root: HTMLElement) {
     navRun(a.dataset.run!);
   });
 
-  // 0-4 run the nav items, unless you're typing somewhere
-  document.addEventListener("keydown", (e) => {
-    if (e.ctrlKey || e.metaKey || e.altKey || !/^\d$/.test(e.key)) return;
-    if ((e.target as Element | null)?.closest("input, textarea, [contenteditable]")) return;
-    const name = NAV[Number(e.key)];
-    if (name) navRun(name);
-  });
-
   // --- screensaver --------------------------------------------------------
 
   const IDLE_MS = 60_000;

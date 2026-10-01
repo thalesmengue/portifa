@@ -1,0 +1,269 @@
+---
+// "contact" from the top nav: a small dialog with how to reach me. Opens on any page; without
+// JavaScript the nav link is a plain mailto.
+import { site, stack, contact } from "../data";
+import { SIT } from "../lua/sprites";
+import { spriteSvg } from "../lua/svg";
+
+const email = contact.find((c) => c.name === "email")!.url.replace(/^mailto:/, "");
+const links = contact.filter((c) => c.name !== "email");
+const pretty = (url: string) => url.replace(/^https?:\/\/(www\.)?/, "");
+---
+
+<dialog class="contact" aria-labelledby="contact-title">
+  <button class="dismiss" type="button" aria-label="close" data-close>×</button>
+  <p class="eyebrow"><span class="arrow">➜</span> <span class="dir">~</span> contact</p>
+  <h2 id="contact-title" class="sans">let's talk</h2>
+  <p class="lead">
+    a role, a project, or just a chat about php and servers. email or linkedin both work.
+  </p>
+
+  <dl>
+    <div><dt>role</dt><dd>{site.role}</dd></div>
+    <div><dt>stack</dt><dd>{stack.main.join(" · ")}</dd></div>
+    <div><dt>based</dt><dd>brazil · utc−3</dd></div>
+    <div><dt>my time</dt><dd class="time">—</dd></div>
+    <div>
+      <dt>email</dt>
+      <dd>
+        <a href={`mailto:${email}`}>{email}</a>
+        <button class="copy" type="button" data-copy={email} aria-label="copy email">copy</button>
+      </dd>
+    </div>
+    {links.map((l) => (
+      <div>
+        <dt>{l.name}</dt>
+        <dd><a href={l.url} target="_blank" rel="noopener">{pretty(l.url)} <span aria-hidden="true">↗</span></a></dd>
+      </div>
+    ))}
+  </dl>
+
+  <div class="lua" title="my cat, head of support" set:html={spriteSvg(SIT, 3, "Lua, a gray tabby cat, sitting")} />
+</dialog>
+
+<script>
+  const dialog = document.querySelector<HTMLDialogElement>("dialog.contact")!;
+  const time = dialog.querySelector<HTMLElement>(".time")!;
+  const fmt = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+  const hour = () => Number(fmt.format(new Date()).slice(0, 2));
+
+  function tick() {
+    const h = hour();
+    const mood = h < 7 ? "probably asleep" : h < 9 ? "waking up, coffee first" : h < 19 ? "probably at the keyboard" : "probably around";
+    time.textContent = `${fmt.format(new Date())} · ${mood}`;
+  }
+
+  function open() {
+    tick();
+    dialog.showModal();
+  }
+
+  document.addEventListener("click", (e) => {
+    const a = (e.target as Element | null)?.closest<HTMLAnchorElement>("a[data-dialog='contact']");
+    if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    open();
+  });
+
+  // a click on the backdrop (the dialog element itself, outside the content) closes it
+  dialog.addEventListener("click", (e) => {
+    if (e.target === dialog || (e.target as Element).closest("[data-close]")) dialog.close();
+  });
+
+  const copy = dialog.querySelector<HTMLButtonElement>(".copy")!;
+  copy.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(copy.dataset.copy!);
+      copy.textContent = "copied";
+    } catch {
+      copy.textContent = "ctrl+c it";
+    }
+    setTimeout(() => (copy.textContent = "copy"), 1600);
+  });
+
+  setInterval(() => dialog.open && tick(), 15_000);
+</script>
+
+<style>
+  dialog {
+    width: min(540px, calc(100vw - 32px));
+    margin: auto;
+    padding: 28px 28px 24px;
+    background: var(--frame);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 24px 60px rgb(0 0 0 / 0.25);
+    overflow: visible; /* lua sits on the top edge */
+  }
+
+  dialog::backdrop {
+    background: rgb(13 13 12 / 0.55);
+    backdrop-filter: blur(2px);
+  }
+
+  dialog[open] {
+    animation: pop 0.18s ease-out;
+  }
+
+  dialog[open]::backdrop {
+    animation: fade 0.18s ease-out;
+  }
+
+  @keyframes pop {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.98);
+    }
+  }
+
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    dialog[open],
+    dialog[open]::backdrop {
+      animation: none;
+    }
+  }
+
+  .dismiss {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 28px;
+    height: 28px;
+    font: inherit;
+    font-size: 18px;
+    line-height: 1;
+    color: var(--muted);
+    background: none;
+    border: 0;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+
+  .dismiss:hover,
+  .dismiss:focus-visible {
+    color: var(--fg);
+    background: var(--border);
+    outline: none;
+  }
+
+  .eyebrow {
+    margin: 0;
+  }
+
+  .arrow {
+    color: #4e9a06;
+    font-weight: 700;
+  }
+
+  .dir {
+    color: #2a9d9d;
+    font-weight: 700;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .arrow {
+      color: #8ae234;
+    }
+
+    .dir {
+      color: #5fd7d7;
+    }
+  }
+
+  h2 {
+    margin: 6px 0 8px;
+    font-size: 28px;
+    letter-spacing: -0.01em;
+  }
+
+  .lead {
+    margin: 0 0 20px;
+    max-width: 44ch;
+    font-family: var(--sans);
+    font-size: 15px;
+    color: var(--muted);
+  }
+
+  dl {
+    margin: 0;
+    font-size: 13px;
+  }
+
+  dl div {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 12px;
+    padding: 9px 0;
+    border-top: 1px solid var(--border);
+  }
+
+  dt {
+    color: var(--muted);
+  }
+
+  dd {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  dd a {
+    color: var(--fg);
+    text-decoration-color: var(--border);
+    text-underline-offset: 3px;
+  }
+
+  dd a:hover {
+    text-decoration-color: var(--fg);
+  }
+
+  .copy {
+    font: inherit;
+    font-size: 11px;
+    color: var(--muted);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 7px;
+    cursor: pointer;
+  }
+
+  .copy:hover {
+    color: var(--fg);
+  }
+
+  /* lua sits on the corner of the card, like she does with everything */
+  .lua {
+    position: absolute;
+    right: 22px;
+    bottom: 100%;
+    margin-bottom: -2px;
+    line-height: 0;
+    pointer-events: none;
+  }
+
+  @media (max-width: 520px) {
+    dialog {
+      padding: 24px 18px 18px;
+    }
+
+    h2 {
+      font-size: 24px;
+    }
+
+    dl div {
+      grid-template-columns: 72px minmax(0, 1fr);
+    }
+  }
+</style>

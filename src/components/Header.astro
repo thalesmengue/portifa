@@ -1,17 +1,26 @@
 ---
 // Top bar, the tmux status line promoted to a nav. On the home page each item runs its
 // command in the terminal; anywhere else it links home and runs it there (/?run=help).
-import { NAV } from "../data";
+// "contact" opens a dialog instead (ContactDialog.astro), and falls back to a mailto.
+import { NAV, contact } from "../data";
+
+const mailto = contact.find((c) => c.name === "email")!.url;
 ---
 
 <header>
   <a class="brand" href="/" aria-label="home">thaleslab<span class="caret" aria-hidden="true"></span></a>
   <nav aria-label="Main">
-    {NAV.map((name, i) => (
-      <a href={`/?run=${name}`} data-run={name} aria-keyshortcuts={String(i)}>
-        <span class="idx" aria-hidden="true">{i}</span>{name}
-      </a>
-    ))}
+    {NAV.map((name, i) =>
+      name === "contact" ? (
+        <a href={mailto} data-dialog="contact" aria-haspopup="dialog" aria-keyshortcuts={String(i)}>
+          <span class="idx" aria-hidden="true">{i}</span>{name}
+        </a>
+      ) : (
+        <a href={`/?run=${name}`} data-run={name} aria-keyshortcuts={String(i)}>
+          <span class="idx" aria-hidden="true">{i}</span>{name}
+        </a>
+      ),
+    )}
   </nav>
   <span class="clock" title="my time, são paulo"></span>
 </header>
@@ -22,6 +31,15 @@ import { NAV } from "../data";
   const tick = () => (clock.textContent = `${fmt.format(new Date())} brt`);
   tick();
   setInterval(tick, 15_000);
+
+  // number keys press the nav items (the terminal or the contact dialog picks up the click),
+  // unless you're typing somewhere
+  const items = [...document.querySelectorAll<HTMLAnchorElement>("header nav a")];
+  document.addEventListener("keydown", (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey || !/^\d$/.test(e.key)) return;
+    if ((e.target as Element | null)?.closest("input, textarea, [contenteditable], dialog[open]")) return;
+    items[Number(e.key)]?.click();
+  });
 </script>
 
 <style>

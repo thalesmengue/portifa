@@ -3,6 +3,7 @@ import "../styles/global.css";
 import Footer from "../components/Footer.astro";
 import Header from "../components/Header.astro";
 import AchievementToast from "../components/AchievementToast.astro";
+import ContactDialog from "../components/ContactDialog.astro";
 import LuaWalker from "../components/LuaWalker.astro";
 import { site } from "../data";
 import monoFont from "@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2?url";
@@ -40,6 +41,7 @@ const umami = { src: import.meta.env.PUBLIC_UMAMI_SRC, id: import.meta.env.PUBLI
     </div>
     <LuaWalker />
     <AchievementToast />
+    <ContactDialog />
     <script>
       import "../scripts/konami";
       import "../scripts/achievements";
