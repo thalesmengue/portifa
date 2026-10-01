@@ -13,6 +13,11 @@ export const site = {
     "and take care of the Linux servers it all runs on.",
 };
 
+export const shell = {
+  user: "thalesmengue",
+  host: "catlover",
+};
+
 export const stack = {
   main: ["php", "laravel", "livewire"],
   also: ["javascript", "typescript", "react native", "linux"],

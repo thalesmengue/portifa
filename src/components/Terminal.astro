@@ -1,21 +1,28 @@
+---
+import { shell } from "../data";
+
+const ps1 = `${shell.user}@${shell.host}:~$`;
+---
+
 <section class="terminal" aria-label="Terminal interativo">
   <div class="bar">
     <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-    <span class="title">thales@portifa: ~</span>
+    <span class="title">{shell.user}@{shell.host}: ~</span>
   </div>
   <div class="screen" id="screen">
     <div id="output" aria-live="polite"></div>
     <form id="prompt" autocomplete="off">
-      <label for="cmd" class="ps1">thales@portifa:~$</label>
+      <label for="cmd" class="ps1">{ps1}</label>
       <input id="cmd" type="text" spellcheck="false" autocapitalize="off" aria-label="comando" />
     </form>
   </div>
 </section>
 
 <script>
-  import { site, stack, projects, contact, type Link } from "../data";
+  import { site, shell, stack, projects, contact, type Link } from "../data";
 
   const data = { ...site, stack, projects, contact };
+  const ps1 = `${shell.user}@${shell.host}:~$`;
 
   const screen = document.getElementById("screen")!;
   const output = document.getElementById("output")!;
@@ -28,6 +35,8 @@
   const esc = (s: string) =>
     s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
   const link = ({ name, url }: Link) => `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(name)}</a>`;
+
+  const CAT = [" /\\_/\\", "( o.o )", " > ^ <   meow."].join("\n");
 
   const files: Record<string, () => string> = {
     "about.txt": () => esc(data.about),
@@ -61,11 +70,11 @@
     contact: () => data.contact.map(link).join("\n"),
     ls: () => Object.keys(files).join("  "),
     cat: (arg) => {
-      if (!arg) return "cat: missing file operand";
+      if (!arg) return esc(CAT);
       const f = files[arg];
       return f ? f() : `cat: ${esc(arg)}: No such file or directory`;
     },
-    pwd: () => "/home/thales",
+    pwd: () => `/home/${shell.user}`,
     date: () => new Date().toString(),
     echo: (...args) => esc(args.join(" ")),
     sudo: () => "nice try.",
@@ -83,7 +92,7 @@
 
   function run(raw: string) {
     const line = raw.trim();
-    print(`<span class="ps1">thales@portifa:~$</span> ${esc(line)}`);
+    print(`<span class="ps1">${ps1}</span> ${esc(line)}`);
     if (!line) return;
 
     history.push(line);
