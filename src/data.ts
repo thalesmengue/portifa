@@ -29,6 +29,6 @@ export const projects: Project[] = [
 
 export const contact: Link[] = [
   { name: "github", url: "https://github.com/thalesmengue" },
-  { name: "linkedin", url: "https://www.linkedin.com/in/thalesmengue" },
+  { name: "linkedin", url: "https://www.linkedin.com/in/thales-machado-mengue" },
   { name: "email", url: "mailto:thalesmmachado@gmail.com" },
 ];
