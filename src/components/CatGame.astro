@@ -5,11 +5,13 @@
       <i class="min"></i><i class="max"></i><i class="close"></i>
     </span>
   </header>
-  <canvas tabindex="0" aria-label="Game canvas. Press space or tap to jump."></canvas>
+  <canvas tabindex="0" aria-label="Game canvas. Press space or tap to jump, arrow down to duck."></canvas>
 </section>
 
 <script>
   // Sprites: '#' = main color, 'o' = detail color, '.' = transparent.
+  type Sprite = string[];
+
   const CAT_A = [
     "...............#...#..",
     "...............##.##..",
@@ -25,21 +27,7 @@
     "....##..##...##..##...",
     "...##....##.##....##..",
   ];
-  const CAT_B = [
-    "...............#...#..",
-    "...............##.##..",
-    ".##............######.",
-    "#..............##o####",
-    "#..............######.",
-    ".#............######..",
-    "..################....",
-    "...################...",
-    "...################...",
-    "...################...",
-    "....##############....",
-    ".....##.##....##.##...",
-    ".....##.##....##.##...",
-  ];
+  const CAT_B = [...CAT_A.slice(0, 11), ".....##.##....##.##...", ".....##.##....##.##..."];
   const CAT_DEAD = [
     "...............#...#..",
     "...............##.##..",
@@ -55,29 +43,64 @@
     ".....##.##....##.##...",
     ".....##.##....##.##...",
   ];
+  // flat on the ground, ears back
+  const CAT_DUCK = [
+    "................#..#..",
+    "#...............####..",
+    ".#.............##o###.",
+    "..#.################..",
+    "..##################..",
+    "...################...",
+    "...##..##....##..##...",
+  ];
   const CUCUMBER = [
-    ".###.",
-    "##o##",
-    "#####",
-    "#o###",
-    "#####",
-    "###o#",
-    "#####",
-    "#o###",
-    "#####",
-    "##o##",
-    "#####",
-    ".###.",
+    ".###.", "##o##", "#####", "#o###", "#####", "###o#",
+    "#####", "#o###", "#####", "##o##", "#####", ".###.",
   ];
   const CUCUMBER_SHORT = [".###.", "#o###", "#####", "###o#", "#####", "#o###", "#####", ".###."];
   const VACUUM = ["...######...", ".####oo####.", "############", ".##......##."];
+  const PIGEON_A = [
+    "......##....",
+    ".....###....",
+    "..##.####...",
+    ".#o#######..",
+    "##########..",
+    "..#######...",
+    "....##......",
+    "............",
+  ];
+  const PIGEON_B = [
+    "............",
+    "............",
+    "..##........",
+    ".#o#######..",
+    "###########.",
+    "..########..",
+    "....####....",
+    "......##....",
+  ];
+  const FISH = ["..####...#", ".######.##", "#o########", ".######.##", "..####...#"];
+  const MOON = ["..####...", ".###.....", "###......", "###......", "###......", "###......", ".###.....", "..####..."];
+  const CLOUD = [
+    ".......#####.......",
+    "....###.....##.....",
+    "..##..........###..",
+    ".#...............#.",
+    "###################",
+  ];
 
-  type Sprite = string[];
-  type Obstacle = { x: number; sprite: Sprite; color: string; detail: string };
+  type Obstacle = { x: number; y: number; frames: Sprite[]; color: string; detail: string; speed: number };
+  type Fish = { x: number; y: number };
+  type Popup = { x: number; y: number; text: string; age: number };
 
   const S = 3; // pixel scale
   const STEP = 1000 / 60;
   const STORAGE_KEY = "cat-vs-cucumbers:hi";
+  const JUMP_V = 13;
+  const JUMP_CUT = 5; // releasing the key early caps the upward speed: short hops
+  const GRAVITY = 0.7;
+  const BUFFER_FRAMES = 8; // a jump pressed just before landing still counts
+  const FISH_POINTS = 50;
 
   const css = getComputedStyle(document.documentElement);
   const FG = css.getPropertyValue("--on-dark").trim() || "#e9e7e1";
@@ -85,6 +108,8 @@
   const GREEN = css.getPropertyValue("--accent").trim() || "#8fd16a";
   const GREEN_DARK = "#4f7f39";
   const LED = "#e5534b";
+  const FISH_COLOR = "#7fb7e6";
+  const CLOUD_COLOR = "#3a3936";
 
   const root = document.querySelector<HTMLElement>(".game")!;
   const canvas = root.querySelector("canvas")!;
@@ -114,14 +139,32 @@
   let tick = 0;
   let overAt = 0;
   let cat = { y: 0, vy: 0 };
+  let ducking = false;
+  let jumpHeld = false;
+  let jumpBuffer = 0;
   let obstacles: Obstacle[] = [];
+  let fishes: Fish[] = [];
+  let popups: Popup[] = [];
   let nextGap = 0;
-  let specks: { x: number; y: number; w: number }[] = [];
-
-  const catW = CAT_A[0].length * S;
-  const catH = CAT_A.length * S;
+  let nextFish = 0;
   let zoomies = false;
+  let night = false;
+  let specks: { x: number; y: number; w: number }[] = [];
+  let stars: { x: number; y: number; phase: number }[] = [];
+  let clouds: { x: number; y: number }[] = [];
+
   const catX = () => Math.max(24, Math.round(W * 0.06));
+  const isDucking = () => ducking && cat.y === 0 && state === "running";
+  const catSprite = () => (isDucking() ? CAT_DUCK : CAT_A);
+
+  // --- day / night, following the clock in Brazil -------------------------
+
+  function updateSky() {
+    const hour = Number(
+      new Date().toLocaleString("en-US", { hour: "numeric", hourCycle: "h23", timeZone: "America/Sao_Paulo" }),
+    );
+    night = hour >= 19 || hour < 6;
+  }
 
   function resize() {
     const dpr = window.devicePixelRatio || 1;
@@ -138,17 +181,34 @@
       y: ground + 4 + Math.floor(Math.random() * 4) * S,
       w: S * (1 + Math.floor(Math.random() * 3)),
     }));
+    stars = Array.from({ length: Math.ceil(W / 28) }, () => ({
+      x: Math.random() * W,
+      y: 46 + Math.random() * Math.max(10, ground - 150),
+      phase: Math.random() * Math.PI * 2,
+    }));
+    const n = Math.max(2, Math.ceil(W / 260));
+    clouds = Array.from({ length: n }, (_, i) => ({
+      x: (i + Math.random() * 0.6) * (W / n),
+      y: 50 + Math.random() * Math.max(10, ground - 170),
+    }));
     if (state !== "running") cat.y = 0;
     draw();
   }
+
+  // --- game state ---------------------------------------------------------
 
   function reset() {
     score = 0;
     speed = zoomies ? 10 : 6;
     tick = 0;
     cat = { y: 0, vy: 0 };
+    ducking = false;
+    jumpBuffer = 0;
     obstacles = [];
+    fishes = [];
+    popups = [];
     nextGap = W * 0.6;
+    nextFish = W * 1.2;
   }
 
   function start() {
@@ -160,34 +220,73 @@
 
   function jump() {
     if (state !== "running") return start();
-    if (cat.y === 0) cat.vy = 13;
+    if (cat.y === 0 && !isDucking()) cat.vy = JUMP_V;
+    else jumpBuffer = BUFFER_FRAMES;
+  }
+
+  function releaseJump() {
+    jumpHeld = false;
+    if (cat.vy > JUMP_CUT) cat.vy = JUMP_CUT;
+  }
+
+  function duck(on: boolean) {
+    ducking = on;
+    // ducking mid-air pulls the cat down faster
+    if (on && cat.y > 0 && cat.vy > -6) cat.vy = -6;
   }
 
   function spawn() {
     const r = Math.random();
-    const pick: [Sprite, string, string] =
-      r < 0.45
-        ? [CUCUMBER, GREEN, GREEN_DARK]
-        : r < 0.75
-          ? [CUCUMBER_SHORT, GREEN, GREEN_DARK]
-          : [VACUUM, MUTED, LED];
-    obstacles.push({ x: W + 10, sprite: pick[0], color: pick[1], detail: pick[2] });
-    // a twin cucumber now and then
-    if (pick[0] !== VACUUM && Math.random() < 0.25) {
-      obstacles.push({ x: W + 10 + 7 * S, sprite: CUCUMBER_SHORT, color: GREEN, detail: GREEN_DARK });
+    const pigeonsAllowed = score > 150;
+    if (pigeonsAllowed && r < 0.22) {
+      // flies at head height: too low to jump over safely, high enough to duck under
+      const y = ground - CAT_DUCK.length * S - PIGEON_A.length * S - 4;
+      obstacles.push({ x: W + 10, y, frames: [PIGEON_A, PIGEON_B], color: MUTED, detail: "#0d0d0c", speed: 1.15 });
+    } else {
+      const pick: [Sprite, string, string] =
+        r < 0.55
+          ? [CUCUMBER, GREEN, GREEN_DARK]
+          : r < 0.8
+            ? [CUCUMBER_SHORT, GREEN, GREEN_DARK]
+            : [VACUUM, MUTED, LED];
+      const y = ground - pick[0].length * S;
+      obstacles.push({ x: W + 10, y, frames: [pick[0]], color: pick[1], detail: pick[2], speed: 1 });
+      // a twin cucumber now and then
+      if (pick[0] !== VACUUM && Math.random() < 0.25) {
+        obstacles.push({
+          x: W + 10 + 7 * S,
+          y: ground - CUCUMBER_SHORT.length * S,
+          frames: [CUCUMBER_SHORT],
+          color: GREEN,
+          detail: GREEN_DARK,
+          speed: 1,
+        });
+      }
     }
     nextGap = speed * (38 + Math.random() * 45);
   }
 
-  const hit = (o: Obstacle) => {
-    const ow = o.sprite[0].length * S;
-    const oh = o.sprite.length * S;
+  function spawnFish() {
+    // always high enough that it takes a jump to reach
+    const lift = 55 + Math.random() * 50;
+    fishes.push({ x: W + 10, y: ground - lift - FISH.length * S });
+    nextFish = speed * (90 + Math.random() * 120);
+  }
+
+  function catBox() {
+    const sprite = catSprite();
+    const w = sprite[0].length * S;
+    const h = sprite.length * S;
     const pad = S * 2;
-    const cx = catX() + pad;
-    const cy = ground - catH - cat.y + pad;
-    const oy = ground - oh;
-    return cx < o.x + ow - S && cx + catW - pad * 2 > o.x + S && cy < oy + oh && cy + catH - pad * 2 > oy + S;
-  };
+    const top = ground - h - cat.y;
+    return { left: catX() + pad, right: catX() + w - pad, top: top + pad, bottom: top + h - pad };
+  }
+
+  const overlaps = (a: ReturnType<typeof catBox>, x: number, y: number, sprite: Sprite) =>
+    a.left < x + sprite[0].length * S - S &&
+    a.right > x + S &&
+    a.top < y + sprite.length * S - S &&
+    a.bottom > y + S;
 
   function update() {
     tick++;
@@ -195,23 +294,50 @@
       s.x -= speed;
       if (s.x < -s.w) s.x += W + s.w;
     }
+    for (const c of clouds) {
+      c.x -= speed * 0.15;
+      if (c.x < -CLOUD[0].length * 2) c.x += W + CLOUD[0].length * 4;
+    }
 
-    cat.vy -= 0.7;
+    cat.vy -= GRAVITY;
     cat.y = Math.max(0, cat.y + cat.vy);
-    if (cat.y === 0) cat.vy = 0;
+    if (cat.y === 0) {
+      cat.vy = 0;
+      if (jumpBuffer > 0 && !ducking) {
+        // a buffered tap without a held key is a short hop
+        cat.vy = jumpHeld ? JUMP_V : JUMP_CUT + 4;
+        jumpBuffer = 0;
+      }
+    }
+    if (jumpBuffer > 0) jumpBuffer--;
 
-    for (const o of obstacles) o.x -= speed;
+    for (const o of obstacles) o.x -= speed * o.speed;
     obstacles = obstacles.filter((o) => o.x > -60);
+    for (const f of fishes) f.x -= speed;
 
     nextGap -= speed;
     if (nextGap <= 0) spawn();
+    nextFish -= speed;
+    if (nextFish <= 0) spawnFish();
+
+    const box = catBox();
+    fishes = fishes.filter((f) => {
+      if (overlaps(box, f.x, f.y, FISH)) {
+        score += FISH_POINTS;
+        popups.push({ x: f.x, y: f.y, text: `+${FISH_POINTS}`, age: 0 });
+        return false;
+      }
+      return f.x > -40;
+    });
+    popups = popups.filter((p) => ++p.age < 45);
 
     score += (speed / 60) * (zoomies ? 2 : 1);
     speed = Math.min(zoomies ? 18 : 13, speed + 0.0016);
 
-    if (obstacles.some(hit)) {
+    if (obstacles.some((o) => overlaps(box, o.x, o.y, o.frames[0]))) {
       state = "over";
       zoomies = false;
+      ducking = false;
       overAt = performance.now();
       if (Math.floor(score) > hi) {
         hi = Math.floor(score);
@@ -220,22 +346,25 @@
     }
   }
 
-  function sprite(rows: Sprite, x: number, y: number, color: string, detail: string) {
+  // --- drawing ------------------------------------------------------------
+
+  function sprite(rows: Sprite, x: number, y: number, color: string, detail: string, scale = S) {
     for (let r = 0; r < rows.length; r++) {
       for (let c = 0; c < rows[r].length; c++) {
         const ch = rows[r][c];
         if (ch === ".") continue;
         ctx.fillStyle = ch === "o" ? detail : color;
-        ctx.fillRect(Math.round(x + c * S), Math.round(y + r * S), S, S);
+        ctx.fillRect(Math.round(x + c * scale), Math.round(y + r * scale), scale, scale);
       }
     }
   }
 
-  // nyan-cat style trail for zoomies mode
   const RAINBOW = ["#ef2929", "#fcaf3e", "#fce94f", "#8ae234", "#729fcf", "#ad7fa8"];
 
+  // nyan-cat style trail for zoomies mode
   function rainbow() {
-    const y0 = ground - catH - Math.round(cat.y) + S * 6;
+    const h = catSprite().length * S;
+    const y0 = ground - h - Math.round(cat.y) + Math.round(h * 0.45);
     const end = catX() + S * 4;
     for (let x = 0; x < end; x += S * 4) {
       const wave = Math.floor((x + tick * speed) / (S * 8)) % 2 ? S : 0;
@@ -243,6 +372,21 @@
         ctx.fillStyle = c;
         ctx.fillRect(x, y0 + i * S + wave, S * 4, S);
       });
+    }
+  }
+
+  function sky() {
+    if (night) {
+      const t = performance.now() / 1000;
+      for (const s of stars) {
+        ctx.globalAlpha = 0.35 + 0.35 * Math.sin(t * 1.5 + s.phase);
+        ctx.fillStyle = FG;
+        ctx.fillRect(Math.round(s.x), Math.round(s.y), 2, 2);
+      }
+      ctx.globalAlpha = 1;
+      sprite(MOON, Math.round(W * 0.14), 44, FG, FG);
+    } else {
+      for (const c of clouds) sprite(CLOUD, c.x, c.y, CLOUD_COLOR, CLOUD_COLOR, 2);
     }
   }
 
@@ -257,19 +401,38 @@
 
   function draw() {
     ctx.clearRect(0, 0, W, H);
+    sky();
 
     // ground
     ctx.fillStyle = MUTED;
     ctx.fillRect(0, ground, W, 1);
     for (const s of specks) ctx.fillRect(Math.round(s.x), s.y, s.w, 1);
 
-    for (const o of obstacles) sprite(o.sprite, o.x, ground - o.sprite.length * S, o.color, o.detail);
+    for (const f of fishes) sprite(FISH, f.x, f.y + (Math.floor(tick / 10) % 2 ? S : 0), FISH_COLOR, "#0d0d0c");
+    for (const o of obstacles) {
+      const frame = o.frames[Math.floor(tick / 10) % o.frames.length];
+      sprite(frame, o.x, o.y, o.color, o.detail);
+    }
 
     if (zoomies && state === "running") rainbow();
 
     const frame =
-      state === "over" ? CAT_DEAD : state !== "running" || cat.y > 0 ? CAT_B : Math.floor(tick / 6) % 2 ? CAT_A : CAT_B;
-    sprite(frame, catX(), ground - catH - Math.round(cat.y), FG, "#0d0d0c");
+      state === "over"
+        ? CAT_DEAD
+        : isDucking()
+          ? CAT_DUCK
+          : state !== "running" || cat.y > 0
+            ? CAT_B
+            : Math.floor(tick / 6) % 2
+              ? CAT_A
+              : CAT_B;
+    sprite(frame, catX(), ground - frame.length * S - Math.round(cat.y), FG, "#0d0d0c");
+
+    for (const p of popups) {
+      ctx.globalAlpha = 1 - p.age / 45;
+      text(p.text, p.x, p.y - p.age * 0.8, FISH_COLOR, 12, "center");
+    }
+    ctx.globalAlpha = 1;
 
     // score
     const right = W - 20;
@@ -277,8 +440,16 @@
     text(`HI ${pad5(hi)}  ${pad5(score)}`, right, 30, MUTED, 13, "right");
 
     if (state === "idle") {
-      text("press space or tap to play", W / 2, ground - 80, FG, 13, "center");
-      text("jump the cucumbers. cats hate those.", W / 2, ground - 58, MUTED, 12, "center");
+      const touch = matchMedia("(pointer: coarse)").matches;
+      text(touch ? "tap to play" : "press space or tap to play", W / 2, ground - 80, FG, 13, "center");
+      text(
+        touch ? "tap low to duck. catch the fish." : "↓ to duck. catch the fish. avoid the cucumbers.",
+        W / 2,
+        ground - 58,
+        MUTED,
+        12,
+        "center",
+      );
     } else if (state === "over") {
       text("G A M E   O V E R", W / 2, ground - 90, FG, 18, "center");
       text("the cucumber won. press space to retry.", W / 2, ground - 62, MUTED, 12, "center");
@@ -298,22 +469,48 @@
     requestAnimationFrame(loop);
   }
 
+  // --- input --------------------------------------------------------------
+
   const isTyping = (t: EventTarget | null) => t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement;
+  const JUMP_KEYS = ["Space", "ArrowUp", "KeyW"];
+  const DUCK_KEYS = ["ArrowDown", "KeyS"];
 
   window.addEventListener("keydown", (e) => {
-    if (!["Space", "ArrowUp", "KeyW"].includes(e.code)) return;
+    const isJump = JUMP_KEYS.includes(e.code);
+    const isDuck = DUCK_KEYS.includes(e.code);
+    if (!isJump && !isDuck) return;
     if (isTyping(e.target)) return;
     // only hijack the keyboard when the game is focused or already running
     if (document.activeElement !== canvas && state !== "running") return;
     e.preventDefault();
+    if (isDuck) return duck(true);
+    if (e.repeat) return;
+    jumpHeld = true;
     jump();
   });
 
+  window.addEventListener("keyup", (e) => {
+    if (JUMP_KEYS.includes(e.code)) releaseJump();
+    if (DUCK_KEYS.includes(e.code)) duck(false);
+  });
+
+  // touch/mouse: the lower third of the canvas ducks, anywhere else jumps
   canvas.addEventListener("pointerdown", (e) => {
     e.preventDefault();
     canvas.focus({ preventScroll: true });
+    canvas.setPointerCapture(e.pointerId);
+    const rect = canvas.getBoundingClientRect();
+    if (state === "running" && e.clientY - rect.top > rect.height * 0.66) return duck(true);
+    jumpHeld = true;
     jump();
   });
+
+  const pointerUp = () => {
+    releaseJump();
+    duck(false);
+  };
+  canvas.addEventListener("pointerup", pointerUp);
+  canvas.addEventListener("pointercancel", pointerUp);
 
   document.addEventListener("konami", () => {
     zoomies = true;
@@ -327,6 +524,8 @@
     start();
   });
 
+  updateSky();
+  setInterval(updateSky, 60_000);
   new ResizeObserver(resize).observe(canvas);
   document.fonts?.ready.then(draw);
   requestAnimationFrame(loop);
@@ -352,5 +551,4 @@
   canvas:focus-visible {
     box-shadow: inset 0 0 0 1px var(--on-dark-line);
   }
-
 </style>
