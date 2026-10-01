@@ -1,7 +1,7 @@
 // Every command the terminal understands. Each returns HTML (or null when it printed itself).
 
-import { site, shell, stack, projects, contact, now } from "../data";
-import { CAT, FORTUNES, PAST_HISTORY, QUOTES, SAYCAT } from "./content";
+import { site, shell, stack, projects, contact, now, lua } from "../data";
+import { CAT, FORTUNES, LUA_FACES, PAST_HISTORY, QUOTES, SAYCAT } from "./content";
 import { badge, dim, dots, esc, green, link, rows, span, toText, yellow } from "./html";
 import {
   HOME,
@@ -27,6 +27,7 @@ export type Io = {
   setTheme(name: string): void;
   theme(): string;
   play(): void;
+  matrix(): void;
 };
 
 export type State = { cwd: string; prevCwd: string; history: string[]; startedAt: number };
@@ -55,6 +56,27 @@ const DATE = (() => {
 })();
 
 const pick = <T,>(list: T[]) => list[Math.floor(Math.random() * list.length)];
+
+const store = {
+  get(key: string) {
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+  set(key: string, value: string) {
+    try {
+      localStorage.setItem(key, value);
+    } catch {}
+  },
+};
+
+/** Puts a small ascii face next to a few lines of text. */
+const beside = (face: string[], lines: string[], gap = 4) =>
+  Array.from({ length: Math.max(face.length, lines.length) }, (_, i) =>
+    esc((face[i] ?? "").padEnd(8 + gap)) + (lines[i] ?? ""),
+  ).join("\n");
 
 function wrap(text: string, width: number) {
   const lines: string[] = [];
@@ -200,23 +222,26 @@ export function createCommands(root: DirNode, notes: NoteRef[], state: State, io
   }
 
   const commands: Record<string, Cmd> = {
-    help: () =>
-      [
-        rows(
-          [
-            ["about", "a few words about me"],
-            ["stack", "what i work with"],
-            ["projects", "things i made"],
-            ["notes", "things i wrote"],
-            ["now", "what i'm up to"],
-            ["contact", "where to find me"],
-            ["play", "start the cat game"],
-          ],
-          12,
-        ),
+    help: (args) => {
+      const essentials = rows(
+        [
+          ["about", "a few words about me"],
+          ["projects", "things i made"],
+          ["notes", "things i wrote"],
+          ["contact", "where to find me"],
+          ["play", "start the cat game"],
+          ["lua", "meet my cat"],
+        ],
+        10,
+      );
+      if (!args.includes("--all") && !args.includes("-a"))
+        return [essentials, "", dim(`more in ${green("help --all")}. there are a few secrets too.`)].join("\n");
+      return [
+        essentials,
         "",
         rows(
           [
+            ["stack, now", "what i use and what i'm up to"],
             ["ls, cd, cat", "look around (try ls -la)"],
             ["tree", "the whole filesystem"],
             ["fastfetch", "system info, kind of"],
@@ -228,8 +253,9 @@ export function createCommands(root: DirNode, notes: NoteRef[], state: State, io
           12,
         ),
         "",
-        dim("tab completes, ↑↓ history, ctrl+r search, ctrl+l clear. there are a few secrets too."),
-      ].join("\n"),
+        dim("tab completes, ↑↓ history, ctrl+r search, ctrl+l clear."),
+      ].join("\n");
+    },
 
     about: () => esc(site.about),
     stack: () => rows([["main", esc(stack.main.join(", "))], ["also", esc(stack.also.join(", "))]], 6),
@@ -393,6 +419,53 @@ export function createCommands(root: DirNode, notes: NoteRef[], state: State, io
       if (!(t in THEMES)) return `theme: unknown theme '${esc(t)}'. run ${green("theme")} to see the list.`;
       io.setTheme(t);
       return dim(`theme set to ${esc(t)}.`);
+    },
+
+    // --- lua ------------------------------------------------------------
+    lua: (args) => {
+      const touch = !matchMedia("(pointer: fine)").matches;
+      if (args.includes("--follow")) {
+        if (touch) return dim("lua only follows mouse cursors. on touch screens she stays in bed.");
+        document.dispatchEvent(new CustomEvent("lua:follow", { detail: { on: true } }));
+        return `${esc(lua.name)} is now following your cursor. ${dim("lua --stay to make her stop.")}`;
+      }
+      if (args.includes("--stay")) {
+        document.dispatchEvent(new CustomEvent("lua:follow", { detail: { on: false } }));
+        return dim(`${lua.name} went back to bed.`);
+      }
+      const following = store.get("lua:follow") === "1" && !touch;
+      const hour = Number(new Date().toLocaleString("en-US", { hour: "numeric", hourCycle: "h23", timeZone: "America/Sao_Paulo" }));
+      const status = following ? "following your cursor" : hour < 7 || hour >= 23 ? "asleep. it's late in brazil." : "napping somewhere warm";
+      return [
+        beside(LUA_FACES.idle, [
+          green(esc(lua.name)),
+          dim("-".repeat(lua.name.length)),
+          `${green("breed")}${dim(":")} ${esc(lua.breed)}`,
+          `${green("eyes")}${dim(":")} ${esc(lua.eyes)}`,
+          `${green("job")}${dim(":")} ${esc(lua.job)}`,
+          `${green("status")}${dim(":")} ${esc(status)}`,
+          `${green("pets")}${dim(":")} ${Number(store.get("lua:pets")) || 0}`,
+        ]),
+        "",
+        dim(`try: pet${touch ? "" : ", lua --follow"}`),
+      ].join("\n");
+    },
+    pet: () => {
+      const pets = (Number(store.get("lua:pets")) || 0) + 1;
+      store.set("lua:pets", String(pets));
+      document.dispatchEvent(new CustomEvent("lua:pet"));
+      const r = Math.random();
+      const [face, line] =
+        r < 0.1
+          ? [LUA_FACES.bite, "chomp. lua bit you. she still likes you, probably."]
+          : r < 0.2
+            ? [LUA_FACES.ignore, "lua is ignoring you. try again later."]
+            : [LUA_FACES.purr, pick(["purr purr purr", "prrrrrrr", "purr... *slow blink*", "purr. she headbutts your hand."])];
+      return [beside(face, ["", esc(line)]), "", dim(`lua has been petted ${pets} time${pets === 1 ? "" : "s"} in this browser.`)].join("\n");
+    },
+    cmatrix: () => {
+      io.matrix();
+      return null;
     },
 
     // --- fun ------------------------------------------------------------

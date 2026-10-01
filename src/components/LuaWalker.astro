@@ -1,0 +1,197 @@
+<canvas class="lua-walker" aria-hidden="true" hidden></canvas>
+
+<script>
+  // Lua follows the mouse around the page (oneko-style). Off by default: `lua --follow` turns her on.
+  import { SIT, SIT_BLINK, WALK_A, WALK_B, SCARED, SLEEP, draw, type Sprite } from "../lua/sprites";
+
+  const KEY = "lua:follow";
+  const SCALE = 3;
+  const W = 24 * SCALE;
+  const H = 24 * SCALE;
+  const SPEED = 4;
+
+  const HEART = [".OO.OO.", "ORROROO", "ORRRRRO", ".ORRRO.", "..ORO..", "...O..."];
+  const HEART_COLORS = { O: "#1f2226", R: "#ef6b7b" };
+
+  const canvas = document.querySelector<HTMLCanvasElement>(".lua-walker")!;
+  const ctx = canvas.getContext("2d")!;
+  const finePointer = matchMedia("(pointer: fine)").matches;
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  type Mode = "sit" | "walk" | "sleep" | "scared";
+  let on = false;
+  let mode: Mode = "sit";
+  let pos = { x: 0, y: 0 };
+  let target = { x: 0, y: 0 };
+  let facingLeft = false;
+  let lastPointer = { x: 0, y: 0, t: 0 };
+  let lastMoveAt = performance.now();
+  let scaredUntil = 0;
+  let heartUntil = 0;
+  let tick = 0;
+  let raf = 0;
+
+  const read = () => {
+    try {
+      return localStorage.getItem(KEY) === "1";
+    } catch {
+      return false;
+    }
+  };
+  const write = (v: boolean) => {
+    try {
+      localStorage.setItem(KEY, v ? "1" : "0");
+    } catch {}
+  };
+
+  function setup() {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width = `${W}px`;
+    canvas.style.height = `${H}px`;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+  }
+
+  function park() {
+    pos = { x: window.innerWidth - W - 24, y: window.innerHeight - H - 16 };
+    target = { ...pos };
+  }
+
+  function render() {
+    ctx.clearRect(0, 0, W, H);
+    const now = performance.now();
+    const blink = Math.floor(now / 150) % 23 === 0;
+    let sprite: Sprite =
+      mode === "walk"
+        ? Math.floor(tick / 8) % 2
+          ? WALK_A
+          : WALK_B
+        : mode === "sleep"
+          ? SLEEP
+          : mode === "scared"
+            ? SCARED
+            : blink
+              ? SIT_BLINK
+              : SIT;
+    const sw = sprite[0].length * SCALE;
+    const sh = sprite.length * SCALE;
+    // a little hop when scared
+    const hop = mode === "scared" ? Math.sin(((scaredUntil - now) / 700) * Math.PI) * 10 : 0;
+    // sleeping belly goes up and down
+    const breathe = mode === "sleep" && Math.floor(now / 900) % 2 ? 1 : 0;
+    const x = (W - sw) / 2;
+    const y = H - sh - hop + breathe;
+    draw(ctx, sprite, x, y, SCALE, { flip: facingLeft && mode === "walk" });
+
+    if (mode === "sleep") {
+      ctx.fillStyle = "#8c939c";
+      ctx.font = '700 10px "JetBrains Mono Variable", monospace';
+      const z = Math.floor(now / 600) % 3;
+      ["z", "z", "Z"].slice(0, z + 1).forEach((c, i) => ctx.fillText(c, W - 18 + i * 4, y - 2 - i * 7));
+    }
+    if (now < heartUntil) {
+      const float = ((heartUntil - now) / 1500) * 6;
+      draw(ctx, HEART, (W - 7 * 2) / 2, Math.max(0, y - 16 + float - 6), 2, { palette: HEART_COLORS });
+    }
+  }
+
+  function step() {
+    tick++;
+    const now = performance.now();
+
+    if (mode === "scared" && now > scaredUntil) mode = "sit";
+    if (mode !== "scared" && !reduced) {
+      const dx = target.x - pos.x;
+      const dy = target.y - pos.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist > SPEED * 2) {
+        if (mode === "sleep" && now - lastMoveAt < 400) {
+          // just woke up: wait a beat before running
+        } else {
+          mode = "walk";
+          pos.x += (dx / dist) * SPEED;
+          pos.y += (dy / dist) * SPEED;
+          if (Math.abs(dx) > 1) facingLeft = dx < 0;
+        }
+      } else if (mode === "walk") {
+        mode = "sit";
+      } else if (mode === "sit" && now - lastMoveAt > 6000) {
+        mode = "sleep";
+      }
+    } else if (reduced && mode !== "scared") {
+      mode = "sleep";
+    }
+
+    canvas.style.transform = `translate(${Math.round(pos.x)}px, ${Math.round(pos.y)}px)`;
+    render();
+    raf = requestAnimationFrame(step);
+  }
+
+  function onPointer(e: PointerEvent) {
+    if (e.pointerType !== "mouse") return;
+    const now = performance.now();
+    const speed = Math.hypot(e.clientX - lastPointer.x, e.clientY - lastPointer.y) / Math.max(1, now - lastPointer.t);
+    lastPointer = { x: e.clientX, y: e.clientY, t: now };
+    lastMoveAt = now;
+
+    // a fast swipe right over her makes her jump, like a cucumber would
+    const cx = pos.x + W / 2;
+    const cy = pos.y + H / 2;
+    if (speed > 2.5 && Math.hypot(e.clientX - cx, e.clientY - cy) < 48 && mode !== "scared") {
+      mode = "scared";
+      scaredUntil = now + 700;
+      return;
+    }
+    if (mode === "sleep") mode = "sit";
+    // stand next to the cursor, never under it
+    target = {
+      x: Math.min(window.innerWidth - W, Math.max(0, e.clientX - W - 6)),
+      y: Math.min(window.innerHeight - H, Math.max(0, e.clientY - H / 2)),
+    };
+  }
+
+  function enable(persist = true) {
+    if (persist) write(true);
+    if (on) return;
+    on = true;
+    setup();
+    park();
+    canvas.hidden = false;
+    window.addEventListener("pointermove", onPointer, { passive: true });
+    raf = requestAnimationFrame(step);
+  }
+
+  function disable() {
+    write(false);
+    on = false;
+    canvas.hidden = true;
+    window.removeEventListener("pointermove", onPointer);
+    cancelAnimationFrame(raf);
+  }
+
+  document.addEventListener("lua:follow", (e) => {
+    if (!finePointer) return;
+    (e as CustomEvent<{ on: boolean }>).detail.on ? enable() : disable();
+  });
+
+  document.addEventListener("lua:pet", () => {
+    heartUntil = performance.now() + 1500;
+  });
+
+  window.addEventListener("resize", () => on && park());
+
+  if (finePointer && read()) enable(false);
+</script>
+
+<style>
+  .lua-walker {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 50;
+    pointer-events: none;
+    image-rendering: pixelated;
+  }
+</style>

@@ -1,6 +1,7 @@
 ---
 import "../styles/global.css";
 import Footer from "../components/Footer.astro";
+import LuaWalker from "../components/LuaWalker.astro";
 import { site } from "../data";
 import monoFont from "@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2?url";
 import sansFont from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
@@ -30,5 +31,9 @@ const { title = site.name, description = `${site.name} — ${site.role}.` } = As
       <slot />
       <Footer />
     </div>
+    <LuaWalker />
+    <script>
+      import "../scripts/konami";
+    </script>
   </body>
 </html>

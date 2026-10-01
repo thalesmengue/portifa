@@ -85,3 +85,10 @@ export const CUCUMBER_LOG = `[2026-09-28 03:12:44] WARN  cucumber detected behin
 [2026-09-29 14:02:10] WARN  cucumber detected on keyboard
 [2026-09-29 14:02:11] INFO  commit "asdfghjkl" pushed to main
 [2026-09-30 22:47:03] INFO  no cucumbers detected. suspicious.`;
+
+export const LUA_FACES = {
+  idle: [" /\\_/\\", "( o.o )", " > ^ <"],
+  purr: [" /\\_/\\", "( ^.^ )", " > ♥ <"],
+  bite: [" /\\_/\\", "( >.< )", " > ^ <"],
+  ignore: [" /\\_/\\", "( -.- )", " > ^ <"],
+};

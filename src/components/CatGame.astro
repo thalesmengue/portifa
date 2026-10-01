@@ -120,6 +120,7 @@
 
   const catW = CAT_A[0].length * S;
   const catH = CAT_A.length * S;
+  let zoomies = false;
   const catX = () => Math.max(24, Math.round(W * 0.06));
 
   function resize() {
@@ -143,7 +144,7 @@
 
   function reset() {
     score = 0;
-    speed = 6;
+    speed = zoomies ? 10 : 6;
     tick = 0;
     cat = { y: 0, vy: 0 };
     obstacles = [];
@@ -205,11 +206,12 @@
     nextGap -= speed;
     if (nextGap <= 0) spawn();
 
-    score += speed / 60;
-    speed = Math.min(13, speed + 0.0016);
+    score += (speed / 60) * (zoomies ? 2 : 1);
+    speed = Math.min(zoomies ? 18 : 13, speed + 0.0016);
 
     if (obstacles.some(hit)) {
       state = "over";
+      zoomies = false;
       overAt = performance.now();
       if (Math.floor(score) > hi) {
         hi = Math.floor(score);
@@ -226,6 +228,21 @@
         ctx.fillStyle = ch === "o" ? detail : color;
         ctx.fillRect(Math.round(x + c * S), Math.round(y + r * S), S, S);
       }
+    }
+  }
+
+  // nyan-cat style trail for zoomies mode
+  const RAINBOW = ["#ef2929", "#fcaf3e", "#fce94f", "#8ae234", "#729fcf", "#ad7fa8"];
+
+  function rainbow() {
+    const y0 = ground - catH - Math.round(cat.y) + S * 6;
+    const end = catX() + S * 4;
+    for (let x = 0; x < end; x += S * 4) {
+      const wave = Math.floor((x + tick * speed) / (S * 8)) % 2 ? S : 0;
+      RAINBOW.forEach((c, i) => {
+        ctx.fillStyle = c;
+        ctx.fillRect(x, y0 + i * S + wave, S * 4, S);
+      });
     }
   }
 
@@ -248,12 +265,15 @@
 
     for (const o of obstacles) sprite(o.sprite, o.x, ground - o.sprite.length * S, o.color, o.detail);
 
+    if (zoomies && state === "running") rainbow();
+
     const frame =
       state === "over" ? CAT_DEAD : state !== "running" || cat.y > 0 ? CAT_B : Math.floor(tick / 6) % 2 ? CAT_A : CAT_B;
     sprite(frame, catX(), ground - catH - Math.round(cat.y), FG, "#0d0d0c");
 
     // score
     const right = W - 20;
+    if (zoomies && Math.floor(performance.now() / 300) % 2) text("ZOOMIES!", 20, 30, GREEN, 13);
     text(`HI ${pad5(hi)}  ${pad5(score)}`, right, 30, MUTED, 13, "right");
 
     if (state === "idle") {
@@ -293,6 +313,12 @@
     e.preventDefault();
     canvas.focus({ preventScroll: true });
     jump();
+  });
+
+  document.addEventListener("konami", () => {
+    zoomies = true;
+    if (state === "running") speed = Math.max(speed, 10);
+    else start();
   });
 
   document.addEventListener("cat:play", () => {

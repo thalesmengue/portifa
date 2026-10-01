@@ -48,6 +48,7 @@ const windows = ["help", "projects", "notes", "play", "contact"];
 
 <style>
   .terminal {
+    position: relative;
     --t-green: #8ae234;
     --t-cyan: #5fd7d7;
     display: flex;
@@ -254,6 +255,15 @@ const windows = ["help", "projects", "notes", "play", "contact"];
   .terminal :global(.c5) { background: #ad7fa8; }
   .terminal :global(.c6) { background: #34e2e2; }
   .terminal :global(.c7) { background: #eeeeec; }
+
+  /* cmatrix screensaver, drawn over the screen area */
+  .terminal :global(.matrix) {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    z-index: 2;
+    cursor: none;
+  }
 
   /* vim */
   .terminal :global(.vim-tilde) {

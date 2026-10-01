@@ -19,6 +19,13 @@ export const shell = {
   host: "catlover",
 };
 
+export const lua = {
+  name: "lua",
+  breed: "gray tabby",
+  eyes: "amber",
+  job: "chief cucumber inspector",
+};
+
 export const stack = {
   main: ["php", "laravel", "livewire"],
   also: ["javascript", "typescript", "react native", "linux"],

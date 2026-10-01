@@ -5,6 +5,7 @@ import { ALIASES, ARTISAN, PATH_COMMANDS, createCommands, type Io, type State } 
 import { CAT } from "./content";
 import { HOME, basename, buildFs, lookup, resolve, type NoteRef } from "./fs";
 import { dim, esc, span, toText } from "./html";
+import { startMatrix } from "./matrix";
 import { THEMES, applyTheme, savedTheme } from "./themes";
 
 type Mode = "normal" | "password" | "vim" | "search";
@@ -272,6 +273,7 @@ export function mountShell(root: HTMLElement) {
     },
     theme: () => themeName,
     play: () => document.dispatchEvent(new CustomEvent("cat:play")),
+    matrix: () => void screensaver(),
   };
 
   const commands = createCommands(fsRoot, notes, state, io);
@@ -452,6 +454,39 @@ export function mountShell(root: HTMLElement) {
   };
   tickClock();
   setInterval(tickClock, 15_000);
+
+  // --- screensaver --------------------------------------------------------
+
+  const IDLE_MS = 60_000;
+  let lastActivity = Date.now();
+  let saverOn = false;
+  let visible = false;
+
+  function screensaver() {
+    if (saverOn || reduced) return;
+    saverOn = true;
+    startMatrix(root, screen, () => {
+      saverOn = false;
+      lastActivity = Date.now();
+    });
+  }
+
+  for (const ev of ["keydown", "pointermove", "pointerdown", "wheel", "touchstart", "scroll"]) {
+    window.addEventListener(ev, () => (lastActivity = Date.now()), { passive: true, capture: true });
+  }
+  new IntersectionObserver(([e]) => (visible = e.intersectionRatio > 0.5), { threshold: [0, 0.5, 1] }).observe(root);
+  setInterval(() => {
+    const idle = Date.now() - lastActivity > IDLE_MS;
+    if (idle && visible && !busy && mode === "normal" && document.visibilityState === "visible") screensaver();
+  }, 5000);
+
+  // --- events from the rest of the page -----------------------------------
+
+  document.addEventListener("konami", () => {
+    if (busy || mode !== "normal") return;
+    input.value = "";
+    print(`${span("key", "achievement unlocked:")} you know the code. ${dim("zoomies mode on in the game.")}`);
+  });
 
   // --- intro --------------------------------------------------------------
 
