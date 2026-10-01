@@ -1,0 +1,45 @@
+---
+import Base from "../layouts/Base.astro";
+---
+
+<Base title="404 — Thales Machado">
+  <section class="card dark notfound">
+    <header class="titlebar">
+      <span class="title">404</span>
+    </header>
+    <pre><span class="arrow">➜</span> <span class="dir">~</span> cd <span class="path"></span>
+cd: no such file or directory: <span class="path"></span>
+
+<span class="arrow">➜</span> <span class="dir">~</span> <a href="/">cd ~</a></pre>
+  </section>
+</Base>
+
+<script>
+  document.querySelectorAll(".path").forEach((el) => (el.textContent = decodeURI(location.pathname)));
+</script>
+
+<style>
+  .notfound pre {
+    margin: 0;
+    padding: 20px 18px 28px;
+    font: inherit;
+    font-size: 13px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .arrow {
+    color: #8ae234;
+    font-weight: 700;
+  }
+
+  .dir {
+    color: #5fd7d7;
+    font-weight: 700;
+  }
+
+  a {
+    color: var(--on-dark);
+    text-underline-offset: 3px;
+  }
+</style>
