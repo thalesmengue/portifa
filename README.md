@@ -4,11 +4,13 @@ Minimal personal portfolio with a tiny fake Linux terminal, built with [Astro](h
 
 ## Development
 
+Requires [Bun](https://bun.sh).
+
 ```sh
-npm install
-npm run dev      # http://localhost:4321
-npm run build    # static output in dist/
-npm run preview
+bun install
+bun run dev      # http://localhost:4321
+bun run build    # static output in dist/
+bun run preview
 ```
 
 ## Editing content
