@@ -63,7 +63,15 @@ const windows = ["help", "projects", "notes", "play", "contact"];
   const dim = (s: string) => `<span class="dim">${s}</span>`;
   const rows = (pairs: string[][], pad = 10) => pairs.map(([k, v]) => `${dim(k.padEnd(pad))}${v}`).join("\n");
 
-  const CAT = [" /\\_/\\", "( o.o )", " > ^ <"];
+  const CAT = [
+    "    /\\_____/\\",
+    "   /  o   o  \\",
+    "  ( ==  ^  == )",
+    "   )         (",
+    "  (           )",
+    " ( (  )   (  ) )",
+    "(__(__)___(__)__)",
+  ];
 
   // fastfetch-style card: ascii cat on the left, info on the right
   function fetch() {
@@ -128,7 +136,7 @@ const windows = ["help", "projects", "notes", "play", "contact"];
     fastfetch: () => null, // handled in run()
     ls: () => Object.keys(files).join("  "),
     cat: (arg) => {
-      if (!arg) return esc(CAT.join("\n") + "   meow.");
+      if (!arg) return esc([...CAT, "", "      meow."].join("\n"));
       const f = files[arg.replace(/^~\//, "")];
       return f ? f() : `cat: ${esc(arg)}: No such file or directory`;
     },
@@ -287,7 +295,9 @@ const windows = ["help", "projects", "notes", "play", "contact"];
     display: flex;
     flex-direction: column;
     min-height: 0;
-    font-size: 13px;
+    font-size: 12px;
+    line-height: 1.65;
+    font-variant-ligatures: none;
   }
 
   .screen {
@@ -400,7 +410,7 @@ const windows = ["help", "projects", "notes", "play", "contact"];
 
   .terminal :global(.fetch) {
     display: flex;
-    gap: 28px;
+    gap: 3ch;
     margin: 10px 0 14px;
   }
 
